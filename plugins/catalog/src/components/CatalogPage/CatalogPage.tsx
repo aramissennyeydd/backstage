@@ -24,5 +24,5 @@ import {
 export function CatalogPage(props: DefaultCatalogPageProps) {
   const outlet = useOutlet();
 
-  return outlet || <DefaultCatalogPage {...props} />;
+  return outlet || <DefaultCatalogPage {...props} pagination={{ limit: 2 }} />;
 }

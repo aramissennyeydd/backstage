@@ -19,6 +19,7 @@ import { EntityFilter } from '../types';
 import {
   EntityLifecycleFilter,
   EntityNamespaceFilter,
+  EntityOrderFieldsFilter,
   EntityOrphanFilter,
   EntityOwnerFilter,
   EntityTagFilter,
@@ -32,10 +33,15 @@ export interface CatalogFilters {
   fullTextFilter?: {
     term: string;
   };
+  orderFields?: { field: string; order: 'asc' | 'desc' }[];
 }
 
 function isEntityTextFilter(t: EntityFilter): t is EntityTextFilter {
   return !!(t as EntityTextFilter).getFullTextFilters;
+}
+
+function isEntitySortFilter(t: EntityFilter): t is EntityOrderFieldsFilter {
+  return !!(t as EntityOrderFieldsFilter).getOrderFields;
 }
 
 export function reduceCatalogFilters(filters: EntityFilter[]): CatalogFilters {
@@ -50,7 +56,8 @@ export function reduceCatalogFilters(filters: EntityFilter[]): CatalogFilters {
   );
 
   const fullTextFilter = filters.find(isEntityTextFilter)?.getFullTextFilters();
-  return { filter: condensedFilters, fullTextFilter };
+  const orderFields = filters.find(isEntitySortFilter)?.getOrderFields();
+  return { filter: condensedFilters, fullTextFilter, orderFields };
 }
 
 /**

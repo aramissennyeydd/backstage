@@ -42,6 +42,7 @@ import {
   UserListFilter,
   EntityNamespaceFilter,
   EntityUserFilter,
+  EntityOrderFieldsFilter,
 } from '../filters';
 import { EntityFilter } from '../types';
 import {
@@ -64,6 +65,7 @@ export type DefaultEntityFilters = {
   orphan?: EntityOrphanFilter;
   error?: EntityErrorFilter;
   namespace?: EntityNamespaceFilter;
+  orderFields?: EntityOrderFieldsFilter;
 };
 
 /** @public */
@@ -238,9 +240,9 @@ export const EntityListProvider = <EntityFilters extends DefaultEntityFilters>(
 
           if (!isEqual(previousBackendFilter, backendFilter)) {
             const response = await catalogApi.queryEntities({
+              orderFields: [{ field: 'metadata.name', order: 'asc' }],
               ...backendFilter,
               limit,
-              orderFields: [{ field: 'metadata.name', order: 'asc' }],
             });
             setOutputState({
               appliedFilters: requestedFilters,

@@ -19,6 +19,10 @@ import React from 'react';
 import { Table, TableProps } from '@backstage/core-components';
 import { CatalogTableRow } from './types';
 import { CatalogTableToolbar } from './CatalogTableToolbar';
+import {
+  EntityOrderFieldsFilter,
+  useEntityList,
+} from '@backstage/plugin-catalog-react';
 
 type PaginatedCatalogTableProps = {
   prev?(): void;
@@ -31,9 +35,30 @@ type PaginatedCatalogTableProps = {
 export function PaginatedCatalogTable(props: PaginatedCatalogTableProps) {
   const { columns, data, next, prev, title, isLoading, options, ...restProps } =
     props;
+  const { updateFilters } = useEntityList();
 
   return (
     <Table
+      onOrderChange={(orderBy: number, orderDirection: string | undefined) => {
+        // Reset order if no column is selected
+        if (orderBy === -1) {
+          updateFilters({
+            orderFields: undefined,
+          });
+        } else {
+          const field = columns[orderBy].field!;
+          const order = orderDirection === 'asc' ? 'asc' : 'desc';
+          if (field.startsWith('resolved.')) {
+            // Resolved field that cannot be server-side ordered. Do nothing.
+          } else if (field.startsWith('entity.')) {
+            updateFilters({
+              orderFields: new EntityOrderFieldsFilter([
+                { field: field.replace('entity.', ''), order },
+              ]),
+            });
+          }
+        }
+      }}
       title={isLoading ? '' : title}
       columns={columns}
       data={data}

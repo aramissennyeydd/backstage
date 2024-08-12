@@ -330,3 +330,19 @@ export class EntityErrorFilter implements EntityFilter {
     return error !== undefined && this.value === error;
   }
 }
+
+/**
+ * Filters entities on lifecycle.
+ * @public
+ */
+export class EntityOrderFieldsFilter implements EntityFilter {
+  constructor(readonly values: { field: string; order: 'asc' | 'desc' }[]) {}
+
+  toQueryValue(): string[] {
+    return this.values.map(v => `${v.field}:${v.order}`);
+  }
+
+  getOrderFields() {
+    return this.values;
+  }
+}
