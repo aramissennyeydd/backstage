@@ -51,7 +51,8 @@ export const columnFactories = Object.freeze({
   createSystemColumn(): TableColumn<CatalogTableRow> {
     return {
       title: 'System',
-      field: 'entity.relations.partOf',
+      // These need to be lower case because that's how they're stored in the db.
+      field: 'entity.relations.partof',
       render: ({ entity }) => (
         <EntityRefLinks
           entityRefs={getEntityRelations(entity, RELATION_PART_OF, {
@@ -65,7 +66,8 @@ export const columnFactories = Object.freeze({
   createOwnerColumn(): TableColumn<CatalogTableRow> {
     return {
       title: 'Owner',
-      field: 'entity.relations.ownedBy',
+      // These need to be lower case because that's how they're stored in the db.
+      field: 'entity.relations.ownedby',
       render: ({ entity }) => (
         <EntityRefLinks
           entityRefs={getEntityRelations(entity, RELATION_OWNED_BY)}

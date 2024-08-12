@@ -37,6 +37,14 @@ export function PaginatedCatalogTable(props: PaginatedCatalogTableProps) {
     props;
   const { updateFilters } = useEntityList();
 
+  const updatedColumns = columns.map(column => {
+    return {
+      ...column,
+      // Disable client side sorting (only those in the current page) because it causes a double render.
+      customSort: () => 0,
+    };
+  });
+
   return (
     <Table
       onOrderChange={(orderBy: number, orderDirection: string | undefined) => {
@@ -60,7 +68,7 @@ export function PaginatedCatalogTable(props: PaginatedCatalogTableProps) {
         }
       }}
       title={isLoading ? '' : title}
-      columns={columns}
+      columns={updatedColumns}
       data={data}
       options={{
         ...options,
