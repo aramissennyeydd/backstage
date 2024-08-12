@@ -98,6 +98,19 @@ export const CatalogTable = (props: CatalogTableProps) => {
       typeof columns === 'function' ? columns(entityListContext) : columns,
     [columns, entityListContext],
   );
+
+  // Deprecation notice for all resolved fields. They do not play well with pagination and sorting.
+  useMemo(() => {
+    for (const column of tableColumns) {
+      if (column.field?.startsWith('resolved.')) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `The column ${column.title} is using a resolved field, which is deprecated. Please use a field from 'entity.' instead.`,
+        );
+      }
+    }
+  }, [tableColumns]);
+
   const { t } = useTranslationRef(catalogTranslationRef);
 
   if (error) {
@@ -250,6 +263,7 @@ function toEntityRow(entity: Entity) {
       // This name is here for backwards compatibility mostly; the
       // presentation of refs in the table should in general be handled with
       // EntityRefLink / EntityName components
+      // TODO: Remove this once we fully deprecate resolved columns.
       name: humanizeEntityRef(entity, {
         defaultKind: 'Component',
       }),

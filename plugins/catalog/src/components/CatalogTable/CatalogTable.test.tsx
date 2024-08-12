@@ -439,4 +439,67 @@ describe('CatalogTable component', () => {
     const labelCellValue = screen.getByText('generic');
     expect(labelCellValue).toBeInTheDocument();
   });
+
+  it('should console.warn when columns with resolved fields are used', async () => {
+    const columns: CatalogTableColumnsFunc = ({
+      filters,
+      entities: entities1,
+    }) => {
+      return filters.kind?.value === 'api' && entities1.length
+        ? [
+            {
+              title: 'System',
+              field: 'resolved.system',
+            },
+            {
+              title: 'Owner',
+              field: 'resolved.owner',
+            },
+          ]
+        : [];
+    };
+
+    const entity = {
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'API',
+      metadata: {
+        name: 'APIWithLabel',
+        labels: { category: 'generic' },
+      },
+    };
+
+    const warnSpy = jest.spyOn(console, 'warn');
+
+    await renderInTestApp(
+      <ApiProvider apis={mockApis}>
+        <MockEntityListContextProvider
+          value={{
+            entities: [entity],
+            filters: {
+              kind: {
+                value: 'api',
+                getCatalogFilters: () => ({ kind: 'api' }),
+                toQueryValue: () => 'api',
+              },
+            },
+          }}
+        >
+          <CatalogTable columns={columns} />
+        </MockEntityListContextProvider>
+      </ApiProvider>,
+      {
+        mountedRoutes: {
+          '/catalog/:namespace/:kind/:name': entityRouteRef,
+        },
+      },
+    );
+
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+    expect(warnSpy.mock.calls[0][0]).toMatch(
+      /The column System is using a resolved field, which is deprecated. Please use a field from 'entity.' instead./,
+    );
+    expect(warnSpy.mock.calls[1][0]).toMatch(
+      /The column Owner is using a resolved field, which is deprecated. Please use a field from 'entity.' instead./,
+    );
+  });
 });

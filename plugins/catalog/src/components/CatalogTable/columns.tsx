@@ -15,14 +15,18 @@
  */
 import React from 'react';
 import {
-  humanizeEntityRef,
   EntityRefLink,
   EntityRefLinks,
+  getEntityRelations,
 } from '@backstage/plugin-catalog-react';
 import Chip from '@material-ui/core/Chip';
 import { CatalogTableRow } from './types';
 import { OverflowTooltip, TableColumn } from '@backstage/core-components';
-import { Entity } from '@backstage/catalog-model';
+import {
+  Entity,
+  RELATION_OWNED_BY,
+  RELATION_PART_OF,
+} from '@backstage/catalog-model';
 import { JsonArray } from '@backstage/types';
 
 // The columnFactories symbol is not directly exported, but through the
@@ -32,24 +36,10 @@ export const columnFactories = Object.freeze({
   createNameColumn(options?: {
     defaultKind?: string;
   }): TableColumn<CatalogTableRow> {
-    function formatContent(entity: Entity): string {
-      return (
-        entity.metadata?.title ||
-        humanizeEntityRef(entity, {
-          defaultKind: options?.defaultKind,
-        })
-      );
-    }
-
     return {
       title: 'Name',
-      field: 'resolved.entityRef',
+      field: 'entity.metadata.name',
       highlight: true,
-      customSort({ entity: entity1 }, { entity: entity2 }) {
-        // TODO: We could implement this more efficiently by comparing field by field.
-        // This has similar issues as above.
-        return formatContent(entity1).localeCompare(formatContent(entity2));
-      },
       render: ({ entity }) => (
         <EntityRefLink
           entityRef={entity}
@@ -61,10 +51,12 @@ export const columnFactories = Object.freeze({
   createSystemColumn(): TableColumn<CatalogTableRow> {
     return {
       title: 'System',
-      field: 'resolved.partOfSystemRelationTitle',
-      render: ({ resolved }) => (
+      field: 'entity.relations.partOf',
+      render: ({ entity }) => (
         <EntityRefLinks
-          entityRefs={resolved.partOfSystemRelations}
+          entityRefs={getEntityRelations(entity, RELATION_PART_OF, {
+            kind: 'system',
+          })}
           defaultKind="system"
         />
       ),
@@ -73,10 +65,10 @@ export const columnFactories = Object.freeze({
   createOwnerColumn(): TableColumn<CatalogTableRow> {
     return {
       title: 'Owner',
-      field: 'resolved.ownedByRelationsTitle',
-      render: ({ resolved }) => (
+      field: 'entity.relations.ownedBy',
+      render: ({ entity }) => (
         <EntityRefLinks
-          entityRefs={resolved.ownedByRelations}
+          entityRefs={getEntityRelations(entity, RELATION_OWNED_BY)}
           defaultKind="group"
         />
       ),
