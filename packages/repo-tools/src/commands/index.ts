@@ -58,7 +58,6 @@ function registerPackageCommand(program: Command) {
     .description(
       'Additional properties that can be passed to @openapitools/openapi-generator-cli',
     )
-    .option('--server-client-import [import]', 'Import path for the client')
     .action(
       lazy(() =>
         import('./package/schema/openapi/generate').then(m => m.command),

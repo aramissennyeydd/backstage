@@ -82,12 +82,7 @@ export const createOpenApiRouter = async (
   }
 }
 
-async function generate(clientImport: string | undefined) {
-  if (!clientImport) {
-    throw new Error(
-      'Unable to determine client import. Either provide it through the "--server-client-import" option or call this command with the "--client-package" option.',
-    );
-  }
+async function generate() {
   const resolvedOpenapiPath = await getPathToCurrentOpenApiSpec();
   const resolvedOutputDirectory = await getRelativePathToFile(OUTPUT_PATH);
 
@@ -97,11 +92,6 @@ async function generate(clientImport: string | undefined) {
     resolve(resolvedOutputDirectory, '.openapi-generator-ignore'),
     OPENAPI_IGNORE_FILES.join('\n'),
   );
-
-  const additionalProperties = [];
-  if (clientImport) {
-    additionalProperties.push(`clientImport=${clientImport}`);
-  }
 
   await exec(
     'node',
@@ -119,7 +109,6 @@ async function generate(clientImport: string | undefined) {
         '@backstage/repo-tools',
         'templates/typescript-backstage-server.yaml',
       ),
-      `--additional-properties=${additionalProperties.join(',')}`,
       '--generator-key',
       'v3.0',
     ],
@@ -151,15 +140,9 @@ async function generate(clientImport: string | undefined) {
   await generateSpecFile();
 }
 
-export async function command(
-  serverClientImport: string | undefined,
-  clientPackage: string | undefined,
-): Promise<void> {
+export async function command(): Promise<void> {
   try {
-    const { name } = clientPackage
-      ? require(cliPaths.resolveTargetRoot(clientPackage, 'package.json'))
-      : { name: undefined };
-    await generate(serverClientImport || name);
+    await generate();
     console.log(
       chalk.green(`Generated server files in ${dirname(TS_SCHEMA_PATH)}`),
     );
