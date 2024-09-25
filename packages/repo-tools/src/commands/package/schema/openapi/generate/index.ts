@@ -25,10 +25,14 @@ export async function command(opts: OptionValues) {
     );
     process.exit(1);
   }
+  const promises = [];
   if (opts.clientPackage) {
-    await generateClient(opts.clientPackage, opts.clientAdditionalProperties);
+    promises.push(
+      generateClient(opts.clientPackage, opts.clientAdditionalProperties),
+    );
   }
   if (opts.server) {
-    await generateServer();
+    promises.push(generateServer());
   }
+  await Promise.all(promises);
 }
