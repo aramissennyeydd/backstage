@@ -3830,7 +3830,6 @@ __metadata:
     "@backstage/catalog-model": "workspace:^"
     "@backstage/cli": "workspace:^"
     "@backstage/errors": "workspace:^"
-    "@backstage/plugin-catalog-common": "workspace:^"
     cross-fetch: ^4.0.0
     msw: ^1.0.0
     uri-template: ^2.0.0
@@ -5818,8 +5817,6 @@ __metadata:
     "@backstage/cli": "workspace:^"
     "@backstage/plugin-permission-common": "workspace:^"
     "@backstage/plugin-search-common": "workspace:^"
-    cross-fetch: ^4.0.0
-    uri-template: ^2.0.0
   languageName: unknown
   linkType: soft
 
@@ -7746,8 +7743,6 @@ __metadata:
     "@backstage/cli": "workspace:^"
     "@backstage/plugin-permission-common": "workspace:^"
     "@backstage/types": "workspace:^"
-    cross-fetch: ^4.0.0
-    uri-template: ^2.0.0
   languageName: unknown
   linkType: soft
 
