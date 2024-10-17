@@ -16,7 +16,7 @@
 
 import { lazy } from '@backstage/cli-node';
 import { Command } from 'commander';
-import registerConfigCommands from '@backstage/cli-module-config';
+import { registerCommands as registerConfigCommands } from '@backstage/cli-module-config';
 
 const configOption = [
   '--config <path>',
