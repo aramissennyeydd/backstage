@@ -44,6 +44,7 @@
   "dependencies": {
     "@backstage/catalog-model": "workspace:^",
     "@backstage/cli-common": "workspace:^",
+    "@backstage/cli-module-config": "workspace:^",
     "@backstage/cli-node": "workspace:^",
     "@backstage/config": "workspace:^",
     "@backstage/config-loader": "workspace:^",

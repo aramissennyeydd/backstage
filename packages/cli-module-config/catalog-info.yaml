@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: backstage-cli-module-config
+  title: '@backstage/cli-module-config'
+spec:
+  lifecycle: experimental
+  type: backstage-node-library
+  owner: maintainers

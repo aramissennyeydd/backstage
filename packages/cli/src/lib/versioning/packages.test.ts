@@ -17,7 +17,7 @@
 import * as runObj from '../run';
 import * as yarn from '../yarn';
 import { fetchPackageInfo, mapDependencies } from './packages';
-import { NotFoundError } from '../errors';
+import { NotFoundError } from '@backstage/cli-node';
 import { createMockDirectory } from '@backstage/backend-test-utils';
 
 jest.mock('../run', () => {

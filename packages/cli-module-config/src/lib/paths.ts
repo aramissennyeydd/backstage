@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Backstage Authors
+ * Copyright 2024 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { findPaths } from '@backstage/cli-common';
 
-/**
- * Node.js library for Backstage CLIs
- *
- * @packageDocumentation
- */
-
-export * from './git';
-export * from './monorepo';
-export * from './roles';
-export * from './commands';
+/* eslint-disable-next-line no-restricted-syntax */
+export const paths = findPaths(__dirname);

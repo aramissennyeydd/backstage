@@ -16,7 +16,7 @@
 
 import { minimatch } from 'minimatch';
 import { getPackages } from '@manypkg/get-packages';
-import { NotFoundError } from '../errors';
+import { NotFoundError } from '@backstage/cli-node';
 import { detectYarnVersion } from '../yarn';
 import { execFile } from '../run';
 
