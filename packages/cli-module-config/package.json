@@ -1,33 +1,30 @@
 {
   "name": "@backstage/cli-module-config",
   "version": "0.0.0",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "license": "Apache-2.0",
-  "private": true,
+  "backstage": {
+    "role": "node-library"
+  },
   "publishConfig": {
     "access": "public",
     "main": "dist/index.cjs.js",
     "types": "dist/index.d.ts"
   },
-  "backstage": {
-    "role": "node-library"
-  },
-  "scripts": {
-    "start": "backstage-cli package start",
-    "build": "backstage-cli package build",
-    "lint": "backstage-cli package lint",
-    "test": "backstage-cli package test",
-    "clean": "backstage-cli package clean",
-    "prepack": "backstage-cli package prepack",
-    "postpack": "backstage-cli package postpack"
-  },
-  "devDependencies": {
-    "@backstage/cli": "workspace:^"
-  },
+  "private": false,
+  "license": "Apache-2.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "files": [
     "dist"
   ],
+  "scripts": {
+    "build": "backstage-cli package build",
+    "clean": "backstage-cli package clean",
+    "lint": "backstage-cli package lint",
+    "prepack": "backstage-cli package prepack",
+    "postpack": "backstage-cli package postpack",
+    "start": "backstage-cli package start",
+    "test": "backstage-cli package test"
+  },
   "dependencies": {
     "@backstage/cli-common": "workspace:^",
     "@backstage/cli-node": "workspace:^",
@@ -39,5 +36,8 @@
     "json-schema": "^0.4.0",
     "react-dev-utils": "^12.0.0-next.60",
     "yaml": "^2.0.0"
+  },
+  "devDependencies": {
+    "@backstage/cli": "workspace:^"
   }
 }
