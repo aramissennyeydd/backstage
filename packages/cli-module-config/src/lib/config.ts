@@ -20,7 +20,10 @@ import { paths } from './paths';
 import { getPackages } from '@manypkg/get-packages';
 import { PackageGraph } from '@backstage/cli-node';
 
-type Options = {
+/**
+ * @public
+ */
+export type LoadCliConfigOptions = {
   args: string[];
   fromPackage?: string;
   mockEnv?: boolean;
@@ -31,7 +34,12 @@ type Options = {
   watch?: (newFrontendAppConfigs: AppConfig[]) => void;
 };
 
-export async function loadCliConfig(options: Options) {
+/**
+ * @public
+ *
+ * Load the Backstage config for a package and its dependencies, defaults to all packages in your repository.
+ */
+export async function loadCliConfig(options: LoadCliConfigOptions) {
   // Consider all packages in the monorepo when loading in config
   const { packages } = await getPackages(paths.targetDir);
 

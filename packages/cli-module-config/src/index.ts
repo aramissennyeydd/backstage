@@ -23,6 +23,9 @@ const configOption = [
   Array<string>(),
 ] as const;
 
+/**
+ * @public
+ */
 export function registerCommands(program: Command) {
   program
     .command('config:print')
@@ -90,3 +93,4 @@ export function registerCommands(program: Command) {
 }
 
 export { loadCliConfig } from './lib/config';
+export type { LoadCliConfigOptions } from './lib/config';
