@@ -1,7 +1,7 @@
 ---
 id: catalog
 title: "catalog"
-description: "The Backstage backend plugin that provides the Backstage catalog"
+description: "The API surface consists of a few distinct groups of functionality. Each has a"
 sidebar_label: Introduction
 sidebar_position: 0
 hide_title: true
@@ -29,7 +29,24 @@ import Export from "@theme/ApiExplorer/Export";
 
 
 
-The Backstage backend plugin that provides the Backstage catalog
+The API surface consists of a few distinct groups of functionality. Each has a
+dedicated section below.
+
+> **Note:** This page only describes some of the most commonly used parts of the
+> API, and is a work in progress.
+
+All of the URL paths in this article are assumed to be on top of some base URL
+pointing at your catalog installation. For example, if the path given in a
+section below is `/entities`, and the catalog is located at
+`http://localhost:7007/api/catalog` during local development, the full URL would
+be `http://localhost:7007/api/catalog/entities`. The actual URL may vary from
+one organization to the other, especially in production, but is commonly your
+`backend.baseUrl` in your app config, plus `/api/catalog` at the end.
+
+Some or all of the endpoints may accept or require an `Authorization` header
+with a `Bearer` token, which should then be the Backstage token returned by the
+[`identity API`](https://backstage.io/docs/reference/core-plugin-api.identityapiref).
+
 
 <div
   style={{"marginBottom":"2rem"}}

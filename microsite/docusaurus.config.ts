@@ -108,6 +108,7 @@ const config: Config = {
                 },
               }
             : undefined),
+          docItemComponent: "@theme/ApiItem",
         },
         blog: {
           path: 'blog',
@@ -274,7 +275,7 @@ const config: Config = {
             specPath: "../plugins/catalog-backend/src/schema/openapi.yaml",
             outputDir: "../docs/features/software-catalog/api",
             sidebarOptions: {
-              groupPathsBy: "tag",
+              groupPathsBy: 'tag',
               categoryLinkSource: "tag",
             },
           } satisfies OpenApiPlugin.Options,
@@ -282,20 +283,12 @@ const config: Config = {
             specPath: "../plugins/search-backend/src/schema/openapi.yaml",
             outputDir: "../docs/features/search/api",
             sidebarOptions: {
-              groupPathsBy: "tag",
+              groupPathsBy: 'tag',
               categoryLinkSource: "tag",
             },
           } satisfies OpenApiPlugin.Options,
         }
       },
-    ],
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'plugins',
-        docRootComponent: "@theme/DocPage",
-        docItemComponent: "@theme/ApiItem"
-      }
     ]
   ],
   themes: ["docusaurus-theme-openapi-docs"],

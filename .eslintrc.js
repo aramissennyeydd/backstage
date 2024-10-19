@@ -266,4 +266,5 @@ module.exports = {
   settings: {
     'testing-library/custom-queries': 'off',
   },
+  ignorePatterns: ["docs/*"]
 };
