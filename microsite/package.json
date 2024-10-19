@@ -47,5 +47,14 @@
     "prettier": "^2.6.2",
     "typescript": "~5.2.0",
     "yaml-loader": "^0.8.0"
+  },
+  "resolutions": {
+    "@docusaurus/core": "^3.1.1",
+    "@docusaurus/plugin-client-redirects": "^3.1.1",
+    "@docusaurus/plugin-content-docs": "^3.1.1",
+    "@docusaurus/preset-classic": "^3.1.1",
+    "@docusaurus/types": "^3.1.1",
+    "@docusaurus/utils": "^3.1.1",
+    "@docusaurus/utils-validation": "^3.1.1"
   }
 }
