@@ -76,6 +76,16 @@ cd packages/app
 yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
 ```
 
+### 2.5. Optional: start everything with herdr
+
+From inside a herdr session, after `setup.sh`, run:
+
+```bash
+bash ai-demo/herdr.sh
+```
+
+The script opens an `ai-demo` tab with the backend (left), the frontend (right), and a demo shell (bottom). The shell waits for both servers, then sources `env.sh` and starts `backstage-cli auth login`. After approving the consent page, continue from the resolve step (step 5). Requires `jq`.
+
 ### 3. Terminal C: load the helpers
 
 Defines `ai`, `auth` and `backstage-cli` helpers, sets `BACKEND_URL=http://localhost:7107`, and puts the login state in `$DEMO/xdg-config` and `$DEMO/xdg-data`. It also sets `WT` and `DEMO`.
