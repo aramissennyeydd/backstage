@@ -16,3 +16,37 @@ reset_repo() { # dir: back to the committed starting point, no skills/hooks
 print_prompt() {
   printf '\nPaste this prompt into Claude Code:\n\n%s\n\n' "$PROMPT"
 }
+
+# Demo servers (used by setup.sh, stop.sh and herdr.sh)
+BACKEND_PORT=7107
+FRONTEND_PORT=3100
+BACKEND_READY_URL="http://localhost:$BACKEND_PORT/.backstage/health/v1/readiness"
+FRONTEND_READY_URL="http://localhost:$FRONTEND_PORT"
+
+listeners() {
+  # `|| true` so an empty result does not trip `set -e`/pipefail
+  lsof -ti "tcp:$1" -sTCP:LISTEN 2>/dev/null || true
+}
+
+free_port() {
+  local port=$1 pids
+  pids=$(listeners "$port")
+  [ -z "$pids" ] && return 0
+  echo "Stopping process(es) on port $port: $(echo $pids)"
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null || true
+  for _ in $(seq 20); do
+    [ -z "$(listeners "$port")" ] && return 0
+    sleep 0.5
+  done
+  pids=$(listeners "$port")
+  if [ -n "$pids" ]; then
+    echo "Port $port still busy, sending SIGKILL to: $(echo $pids)"
+    # shellcheck disable=SC2086
+    kill -9 $pids 2>/dev/null || true
+    sleep 1
+  fi
+}
+
+backend_ready() { curl -sf "$BACKEND_READY_URL" >/dev/null 2>&1; }
+frontend_ready() { curl -sf "$FRONTEND_READY_URL" >/dev/null 2>&1; }
