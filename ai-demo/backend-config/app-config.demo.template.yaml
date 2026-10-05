@@ -1,0 +1,33 @@
+catalog:
+  rules:
+    - allow:
+        [
+          AiResource,
+          Component,
+          API,
+          Resource,
+          System,
+          Domain,
+          Location,
+          User,
+          Group,
+        ]
+  locations:
+    - type: file
+      target: '@@DEMO@@/backend-config/catalog-demo.yaml'
+auth:
+  experimentalRefreshToken:
+    enabled: true
+  providers:
+    guest:
+      userEntityRef: user:default/demo-user
+app:
+  baseUrl: http://localhost:3100
+  listen:
+    port: 3100
+backend:
+  cors:
+    origin: http://localhost:3100
+  baseUrl: http://localhost:7107
+  listen:
+    port: 7107
