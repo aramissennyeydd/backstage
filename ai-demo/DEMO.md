@@ -100,7 +100,7 @@ bash ai-demo/claude-without-skills.sh   # baseline-repo, no hooks, no backend ne
 bash ai-demo/claude-with-skills.sh      # repo, needs the backend and a prior login
 ```
 
-`claude-with-skills.sh` runs `ai hooks install`, prints the `ai resolve` summary, and then starts `claude`. The `SessionStart` hook installs the skills at startup. If the install fails, the script tells you to run `auth login` and exits with a non-zero status. Paste the same prompt into both sessions and compare the results. Shared settings live in `lib.sh`.
+`claude-with-skills.sh` runs `ai hooks install`, then `ai skills sync`, prints the `ai resolve` summary, and starts `claude`. Skills must exist in `.claude/skills` before the session starts, because Claude Code registers them at startup, before the `SessionStart` hook runs. The hook is still installed and keeps skills current for later sessions. If the install or sync fails, the script tells you to run `auth login` and exits with a non-zero status. Paste the same prompt into both sessions and compare the results. Shared settings live in `lib.sh`.
 
 ### 3. Terminal C: load the helpers
 
