@@ -1,54 +1,27 @@
 #!/usr/bin/env bash
-# Opens an "ai-demo" herdr tab: backend (top left), frontend (bottom left),
-# and two stacked Claude Code panes on the right: "with skills" (top) and "without skills" (bottom).
-# Stops anything already listening on the demo ports (7107, 3100) first.
-# Run from inside a herdr session after `bash setup.sh`. Requires jq and lsof.
+# Opens an "ai-demo" herdr tab: backend log (top left), frontend log (bottom left), and two stacked
+# Claude Code panes on the right: "with skills" (top) and "without skills" (bottom).
+# Does not start or stop servers: run `bash ai-demo/setup.sh` first. Requires jq, curl and herdr.
 set -euo pipefail
 DEMO="$(cd "$(dirname "$0")" && pwd)"
-WT="$(dirname "$DEMO")"
-CFG="--config ../../app-config.yaml --config $DEMO/backend-config/app-config.demo.yaml"
+. "$DEMO/lib.sh"
 
-listeners() {
-  # `|| true` so an empty result does not trip `set -e`/pipefail
-  lsof -ti "tcp:$1" -sTCP:LISTEN 2>/dev/null || true
-}
+if ! backend_ready || ! frontend_ready; then
+  echo "The demo servers are not running. Run \`bash ai-demo/setup.sh\` first." >&2
+  exit 1
+fi
 
-free_port() {
-  local port=$1 pids
-  pids=$(listeners "$port")
-  [ -z "$pids" ] && return 0
-  echo "Stopping process(es) on port $port: $(echo $pids)"
-  # shellcheck disable=SC2086
-  kill $pids 2>/dev/null || true
-  for _ in $(seq 20); do
-    [ -z "$(listeners "$port")" ] && return 0
-    sleep 0.5
-  done
-  pids=$(listeners "$port")
-  if [ -n "$pids" ]; then
-    echo "Port $port still busy, sending SIGKILL to: $(echo $pids)"
-    # shellcheck disable=SC2086
-    kill -9 $pids 2>/dev/null || true
-    sleep 1
-  fi
-}
-
-free_port 7107
-free_port 3100
-
-tab=$(herdr tab create --label ai-demo --cwd "$WT/packages/backend" --focus)
+tab=$(herdr tab create --label ai-demo --cwd "$DEMO" --focus)
 be=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
 ws=$(herdr pane split --pane "$be" --direction right --cwd "$DEMO/repo" --no-focus | jq -r '.result.pane.pane_id')
 wo=$(herdr pane split --pane "$ws" --direction down --cwd "$DEMO/baseline-repo" --no-focus | jq -r '.result.pane.pane_id')
-fe=$(herdr pane split --pane "$be" --direction down --cwd "$WT/packages/app" --no-focus | jq -r '.result.pane.pane_id')
+fe=$(herdr pane split --pane "$be" --direction down --cwd "$DEMO" --no-focus | jq -r '.result.pane.pane_id')
 
 herdr pane rename "$ws" "with skills"
 herdr pane rename "$wo" "without skills"
 
-herdr pane run "$be" "yarn start $CFG"
-herdr pane run "$fe" "BROWSER=none yarn start $CFG"
-# With skills: wait for the servers, log in only if the CLI has no valid session (pre-auth keeps it across
-# restarts, see DEMO.md), then launch Claude Code.
-herdr pane run "$ws" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && { backstage-cli auth show --instance ai-demo >/dev/null 2>&1 || backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo; } && bash $DEMO/claude-with-skills.sh"
-# Without skills: needs no backend, so it starts right away.
+herdr pane run "$be" "tail -n 100 -f $DEMO/logs/backend.log"
+herdr pane run "$fe" "tail -n 100 -f $DEMO/logs/frontend.log"
+# With skills: setup.sh already logged in; keep the guard as a fallback if the session is gone.
+herdr pane run "$ws" "source $DEMO/env.sh && { backstage-cli auth show --instance ai-demo >/dev/null 2>&1 || backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo; } && bash $DEMO/claude-with-skills.sh"
 herdr pane run "$wo" "bash $DEMO/claude-without-skills.sh"

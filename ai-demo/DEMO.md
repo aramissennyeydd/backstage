@@ -38,96 +38,82 @@ Repo remotes: `repo` and `baseline-repo` use `https://github.com/acme-demo/payme
 - `templates/repo`, `templates/growth-repo`, `templates/baseline-repo`: starter code for the three demo repos.
 - `templates/team-skills`: the six skills.
 - `backend-config/*.template.yaml`: catalog and app config with a `@@DEMO@@` placeholder.
-- `env.sh`, `setup.sh`, `run-comparison.sh`.
+- `env.sh`, `lib.sh`, `setup.sh`, `stop.sh`, `herdr.sh`, `run-comparison.sh`.
 
 `setup.sh` generates the working copies (ignored by git): `repo/`, `growth-repo/`, `baseline-repo/` (each a fresh `git init` with a "starting point" commit and its `origin`), `team-skills/` (a local git repo), the `node_modules/@backstage` symlinks, and `backend-config/catalog-demo.yaml` and `app-config.demo.yaml`. `results/`, `logs/`, `xdg-config/` and `xdg-data/` are created while running and are ignored by git too.
 
 ## Run it
 
-Run `yarn install` in the repo root first if you have not (needed by `yarn start`). Then, from the repo root:
+From the repo root, run `yarn install` if you have not (needed by `yarn start`). Then:
 
 ```bash
 D=$PWD/ai-demo
 ```
 
-### 0. Set up
+### 1. Set up, start the servers and log in
 
 ```bash
 bash $D/setup.sh
 ```
 
-Re-running it recreates the demo repos from scratch.
+This generates the demo files, then stops anything listening on ports 7107 and 3100 and starts the backend (`:7107`) and frontend (`:3100`) detached with `nohup`. Logs go to `ai-demo/logs/backend.log` and `frontend.log`, and the process IDs to `ai-demo/logs/*.pid`. The backend uses guest auth, refresh tokens and the demo catalog. The frontend runs with `BROWSER=none` and serves the CLI login consent page.
 
-### 1. Terminal A: backend on :7107
+Setup waits up to 5 minutes for both servers, and on timeout prints the log tails and exits non-zero. It then sources `env.sh` and runs `backstage-cli auth show --instance ai-demo`. Only if that fails does it run `backstage-cli auth login`, which opens the browser once for the consent page.
 
-Guest auth, refresh tokens and the demo catalog. The databases are SQLite files in `ai-demo/db`, so the auth signing keys, sessions and refresh tokens survive restarts and one login keeps working (see pre-auth below).
+Rerunning it recreates the demo repos from scratch and restarts the servers, but never deletes `ai-demo/db`, `ai-demo/xdg-config` or `ai-demo/xdg-data`. Use `bash $D/setup.sh --no-servers` to only generate files.
 
-```bash
-cd packages/backend
-yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
-```
+#### Pre-auth persistence
 
-### 2. Terminal B: frontend on :3100
+The databases are SQLite files in `ai-demo/db`, so the auth signing keys, sessions and refresh tokens survive restarts. The CLI login state lives in `ai-demo/xdg-config` and `ai-demo/xdg-data`. Together they mean the login from `setup.sh` keeps working across `stop.sh` and `setup.sh`, so you never switch to a browser during the demo. The CLI refreshes an expired access token with its stored refresh token. Refresh tokens last 30 days per rotation and up to 1 year in total by default.
 
-Needed for the CLI login consent page. `BROWSER=none` stops the dev server from opening a browser tab, since login opens its own page.
+To reset, run `bash $D/stop.sh`, then `rm -rf ai-demo/db`, then `bash $D/setup.sh` to log in again. Deleting `ai-demo/xdg-config` and `ai-demo/xdg-data` clears the CLI side.
 
-```bash
-cd packages/app
-BROWSER=none yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
-```
+### 2. Show the demo with `herdr`
 
-### 2.5. Optional: start everything with `herdr`
-
-From inside a `herdr` session, after `setup.sh`, run:
+From inside a `herdr` session, after `setup.sh`:
 
 ```bash
 bash ai-demo/herdr.sh
 ```
 
-The script first stops anything listening on ports 7107 and 3100 (SIGTERM, then SIGKILL if the port stays busy) and prints what it stopped. It then opens an `ai-demo` tab with the backend (top left), the frontend (bottom left), and two stacked Claude Code panes on the right. The panes are named "with skills" (top) and "without skills" (bottom).
+If either server is down, the script prints "Run `bash ai-demo/setup.sh` first" and exits non-zero before creating a tab. Otherwise it opens an `ai-demo` tab. The left column tails the logs, with `logs/backend.log` on top and `logs/frontend.log` below. The right column holds the Claude Code panes "with skills" (top) and "without skills" (bottom).
 
-- **With skills (top right):** waits for both servers, sources `env.sh`, and checks the session with `backstage-cli auth show --instance ai-demo`. It runs `backstage-cli auth login` (browser consent) only if that check fails, then runs `claude-with-skills.sh`.
-- **Without skills (bottom right):** runs `claude-without-skills.sh` right away, because it needs no backend.
+- **With skills:** checks the session with `backstage-cli auth show --instance ai-demo` and runs `auth login` only as a fallback, then runs `claude-with-skills.sh`.
+- **Without skills:** runs `claude-without-skills.sh`, which needs no backend.
 
-Focus stays on the backend pane. Click into a Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `lsof`.
+Focus stays on the left. Click into a Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `curl`.
 
-### 2.6. Manual demo: with and without skills
+### 3. Or run it by hand
 
-To drive the comparison by hand, run each script in its own terminal. Both reset their repo, print the refund prompt, and start interactive `claude` with the same isolation flags that `run-comparison.sh` uses. Both work from any directory.
+Run each script in its own terminal. Both reset their repo, print the refund prompt, and start interactive `claude` with the same isolation flags that `run-comparison.sh` uses. Both work from any directory.
 
 ```bash
 bash ai-demo/claude-without-skills.sh   # baseline-repo, no hooks, no backend needed
-bash ai-demo/claude-with-skills.sh      # repo, needs the backend and a prior login
+bash ai-demo/claude-with-skills.sh      # repo, needs the servers and the login from setup.sh
 ```
 
-`claude-with-skills.sh` runs `ai hooks install`, then `ai skills sync`, prints the `ai resolve` summary, and starts `claude`. Skills must exist in `.claude/skills` before the session starts, because Claude Code registers them at startup, before the `SessionStart` hook runs. The hook is still installed and keeps skills current for later sessions. If the install or sync fails, the script tells you to run `auth login` and exits with a non-zero status. Paste the same prompt into both sessions and compare the results. Shared settings live in `lib.sh`.
+`claude-with-skills.sh` runs `ai hooks install`, then `ai skills sync`, prints the `ai resolve` summary, and starts `claude`. Skills must exist in `.claude/skills` before the session starts, because Claude Code registers them at startup, before the `SessionStart` hook runs. The hook is still installed and keeps skills current for later sessions. If the install or sync fails, the script tells you to run `auth login` and exits with a non-zero status. Paste the same prompt into both sessions and compare the results. Shared settings live in `lib.sh`. To run the scripted comparison instead, see "Run the comparison" below.
 
-### 3. Terminal C: load the helpers
+### 4. Stop the servers
 
-Defines `ai`, `auth` and `backstage-cli` helpers, sets `BACKEND_URL=http://localhost:7107`, and puts the login state in `$DEMO/xdg-config` and `$DEMO/xdg-data`. It also sets `WT` and `DEMO`.
+```bash
+bash ai-demo/stop.sh
+```
+
+Stops the servers from the PID files, then anything still listening on ports 7107 and 3100. It keeps `ai-demo/db` and the login.
+
+### Run the servers by hand
+
+Only if you do not want `setup.sh` to start them. From `packages/backend` and `packages/app`, run `yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml` (prefix the frontend with `BROWSER=none`). Then run `source ai-demo/env.sh` and `backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo`.
+
+### Load the helpers
+
+To run the commands below, define the `ai`, `auth` and `backstage-cli` helpers. This also sets `BACKEND_URL=http://localhost:7107`, `WT` and `DEMO`, and puts the login state in `$DEMO/xdg-config` and `$DEMO/xdg-data`.
 
 ```bash
 source ai-demo/env.sh
 D=$DEMO
 ```
-
-### 4. Log in (browser consent, once)
-
-```bash
-backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo
-```
-
-#### Pre-auth before the demo
-
-Do this once ahead of time so you never switch to a browser during the demo.
-
-1. Run `bash ai-demo/setup.sh` (regenerates the config with the database directory) and start the servers, for example with `bash ai-demo/herdr.sh`.
-2. In the "with skills" pane, approve the consent page in the browser when `auth login` opens it.
-3. Restart the backend (stop it and rerun `bash ai-demo/herdr.sh`). `backstage-cli auth show --instance ai-demo` should still print the user, and the with-skills pane should go straight to Claude Code without opening the browser.
-
-The CLI refreshes an expired access token with its stored refresh token. Refresh tokens last 30 days per rotation and up to 1 year in total by default, so one login lasts well past the demo. Do not delete `ai-demo/db` or `ai-demo/xdg-config` and `ai-demo/xdg-data` after pre-auth.
-
-To reset, stop the backend, delete the database directory with `rm -rf ai-demo/db`, and log in again. Deleting `ai-demo/xdg-config` and `ai-demo/xdg-data` clears the CLI side.
 
 ### 5. Check which skills apply
 
@@ -162,7 +148,7 @@ Other flags: `--dry-run` (print the skills commands only), `--global` (user-leve
 
 Codex does not run a project hook until you approve it. Start `codex` in the repo and run `/hooks`, then approve the Backstage session start hook. Start a new session afterwards and the skills are installed under `.agents/skills`.
 
-### 9. Run the comparison
+### 9. Run the comparison (`run-comparison.sh`)
 
 ```bash
 bash $D/run-comparison.sh
