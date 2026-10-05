@@ -14,14 +14,14 @@ Skills are plain directories (`team-skills/skills/<name>/SKILL.md`) referenced a
 
 Groups: `engineering` (root) with children `platform`, `payments`, `growth`. `demo-user` is `memberOf: [engineering]` only (with one login, membership in both teams would make every team skill match both repos, so team scoping comes from the component owner, the system and ancestor groups). Systems: `checkout` (payments), `marketing` (growth). Components: `payments-service` (owner payments, system checkout) and `growth-service` (owner growth, system marketing), matched by `github.com/project-slug` and the git remote.
 
-| Skill                        | Owner       | System   | dependsOn          | Reaches                             |
-| ---------------------------- | ----------- | -------- | ------------------ | ----------------------------------- |
-| commenting-standards         | engineering | -        | -                  | both (ancestor group of the owners) |
-| payments-code-shape          | payments    | -        | -                  | payments-service                    |
-| payments-testing             | payments    | -        | -                  | payments-service                    |
-| growth-testing               | growth      | -        | -                  | growth-service                      |
-| payments-gateway-integration | payments    | checkout | api-error-handling | payments-service (system)           |
-| api-error-handling           | platform    | -        | -                  | payments-service only via dependsOn |
+| Skill                        | Owner       | System   | `dependsOn`        | Reaches                               |
+| ---------------------------- | ----------- | -------- | ------------------ | ------------------------------------- |
+| commenting-standards         | engineering | -        | -                  | both (ancestor group of the owners)   |
+| payments-code-shape          | payments    | -        | -                  | payments-service                      |
+| payments-testing             | payments    | -        | -                  | payments-service                      |
+| growth-testing               | growth      | -        | -                  | growth-service                        |
+| payments-gateway-integration | payments    | checkout | api-error-handling | payments-service (system)             |
+| api-error-handling           | platform    | -        | -                  | payments-service only via `dependsOn` |
 
 Note: `ai resolve` shows "User groups: -" because the guest login's ownership claim contains only the user ref. Membership in `engineering` is not what drives selection here, the component owner's ancestors are.
 
@@ -40,7 +40,7 @@ Repo remotes: `repo` and `baseline-repo` use `https://github.com/acme-demo/payme
 - `backend-config/*.template.yaml`: catalog and app config with a `@@DEMO@@` placeholder.
 - `env.sh`, `setup.sh`, `run-comparison.sh`.
 
-`setup.sh` generates the gitignored working copies: `repo/`, `growth-repo/`, `baseline-repo/` (each a fresh `git init` with a "starting point" commit and its `origin`), `team-skills/` (a local git repo), the `node_modules/@backstage` symlinks, and `backend-config/catalog-demo.yaml` and `app-config.demo.yaml`. `results/`, `logs/`, `xdg-config/` and `xdg-data/` are created while running and are gitignored too.
+`setup.sh` generates the working copies (ignored by git): `repo/`, `growth-repo/`, `baseline-repo/` (each a fresh `git init` with a "starting point" commit and its `origin`), `team-skills/` (a local git repo), the `node_modules/@backstage` symlinks, and `backend-config/catalog-demo.yaml` and `app-config.demo.yaml`. `results/`, `logs/`, `xdg-config/` and `xdg-data/` are created while running and are ignored by git too.
 
 ## Run it
 
@@ -76,15 +76,15 @@ cd packages/app
 yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
 ```
 
-### 2.5. Optional: start everything with herdr
+### 2.5. Optional: start everything with `herdr`
 
-From inside a herdr session, after `setup.sh`, run:
+From inside a `herdr` session, after `setup.sh`, run:
 
 ```bash
 bash ai-demo/herdr.sh
 ```
 
-The script opens an `ai-demo` tab with the backend (left), the frontend (right), and a demo shell (bottom). The shell waits for both servers, then sources `env.sh` and starts `backstage-cli auth login`. After approving the consent page, continue from the resolve step (step 5). Requires `jq`.
+The script first stops anything listening on ports 7107 and 3100 (SIGTERM, then SIGKILL if the port stays busy) and prints what it stopped. It then opens an `ai-demo` tab with the backend (top left), the frontend (bottom left), and a full-height demo shell (right). The shell waits for both servers, then sources `env.sh` and starts `backstage-cli auth login`. After approving the consent page, continue from the resolve step (step 5). Requires `jq` and `lsof`.
 
 ### 3. Terminal C: load the helpers
 
