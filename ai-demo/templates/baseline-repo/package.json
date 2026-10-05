@@ -2,6 +2,7 @@
   "name": "payments-service-demo",
   "private": true,
   "type": "module",
+  "workspaces": [],
   "devDependencies": {
     "@backstage/cli-module-ai": "*",
     "@backstage/cli-module-auth": "*"
