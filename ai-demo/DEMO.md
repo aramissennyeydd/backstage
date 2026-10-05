@@ -84,7 +84,23 @@ From inside a `herdr` session, after `setup.sh`, run:
 bash ai-demo/herdr.sh
 ```
 
-The script first stops anything listening on ports 7107 and 3100 (SIGTERM, then SIGKILL if the port stays busy) and prints what it stopped. It then opens an `ai-demo` tab with the backend (top left), the frontend (bottom left), and a full-height demo shell (right). The shell waits for both servers, then sources `env.sh` and starts `backstage-cli auth login`. After approving the consent page, continue from the resolve step (step 5). Requires `jq` and `lsof`.
+The script first stops anything listening on ports 7107 and 3100 (SIGTERM, then SIGKILL if the port stays busy) and prints what it stopped. It then opens an `ai-demo` tab with the backend (top left), the frontend (bottom left), and two stacked Claude Code panes on the right. The panes are named "with skills" (top) and "without skills" (bottom).
+
+- **With skills (top right):** waits for both servers, sources `env.sh`, and starts `backstage-cli auth login`. After you approve the consent page, it runs `claude-with-skills.sh`.
+- **Without skills (bottom right):** runs `claude-without-skills.sh` right away, because it needs no backend.
+
+Focus stays on the backend pane. Click into a Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `lsof`.
+
+### 2.6. Manual demo: with and without skills
+
+To drive the comparison by hand, run each script in its own terminal. Both reset their repo, print the refund prompt, and start interactive `claude` with the same isolation flags that `run-comparison.sh` uses. Both work from any directory.
+
+```bash
+bash ai-demo/claude-without-skills.sh   # baseline-repo, no hooks, no backend needed
+bash ai-demo/claude-with-skills.sh      # repo, needs the backend and a prior login
+```
+
+`claude-with-skills.sh` runs `ai hooks install`, prints the `ai resolve` summary, and then starts `claude`. The `SessionStart` hook installs the skills at startup. If the install fails, the script tells you to run `auth login` and exits with a non-zero status. Paste the same prompt into both sessions and compare the results. Shared settings live in `lib.sh`.
 
 ### 3. Terminal C: load the helpers
 

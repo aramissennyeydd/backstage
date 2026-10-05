@@ -2,19 +2,9 @@
 # Replays the catalog-scoped skills comparison. Requires: `backstage-cli auth login --instance ai-demo`
 # done once (see env.sh), backend on :7107 loaded with backend-config/catalog-demo.yaml.
 set -uo pipefail
-DEMO="$(cd "$(dirname "$0")" && pwd)"
-. "$DEMO/env.sh"
+. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 OUT="$DEMO/results"; rm -rf "$OUT"; mkdir -p "$OUT"
-FLAGS=(--allow-file-sources --instance ai-demo)
-# Only project settings (incl. .claude/settings.local.json with the hook) and no MCP servers, so the
-# repos differ only by the installed skills. No --mcp-config is passed, so nothing is loaded.
-CLAUDE=(claude --setting-sources project,local --strict-mcp-config)
-PROMPT="Add a function in src/refunds.ts that issues a refund for a payment through our Payments Gateway, and add tests for it in src/refunds.test.ts. Follow this project's conventions."
 
-reset_repo() { # dir: back to the committed starting point, no skills/hooks
-  git -C "$1" reset -q --hard HEAD; git -C "$1" clean -qfdx -e node_modules
-  rm -rf "$1/.claude" "$1/.agents" "$1/.codex" "$1/skills-lock.json"
-}
 run_repo() { # name dir with_skills
   local name=$1 dir=$2 skills=$3
   reset_repo "$dir"; cd "$dir"
