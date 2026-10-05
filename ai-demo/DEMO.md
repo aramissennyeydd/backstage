@@ -69,11 +69,11 @@ yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.
 
 ### 2. Terminal B: frontend on :3100
 
-Needed for the CLI login consent page.
+Needed for the CLI login consent page. `BROWSER=none` stops the dev server from opening a browser tab, since login opens its own page.
 
 ```bash
 cd packages/app
-yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
+BROWSER=none yarn start --config ../../app-config.yaml --config $D/backend-config/app-config.demo.yaml
 ```
 
 ### 2.5. Optional: start everything with `herdr`

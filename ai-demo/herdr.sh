@@ -41,5 +41,5 @@ sh=$(herdr pane split --pane "$be" --direction right --cwd "$DEMO/repo" --no-foc
 fe=$(herdr pane split --pane "$be" --direction down --cwd "$WT/packages/app" --no-focus | jq -r '.result.pane.pane_id')
 
 herdr pane run "$be" "yarn start $CFG"
-herdr pane run "$fe" "yarn start $CFG"
+herdr pane run "$fe" "BROWSER=none yarn start $CFG"
 herdr pane run "$sh" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo"
