@@ -60,7 +60,7 @@ Re-running it recreates the demo repos from scratch.
 
 ### 1. Terminal A: backend on :7107
 
-Guest auth, refresh tokens and the demo catalog. The database is in memory, so every restart needs a new login (step 4).
+Guest auth, refresh tokens and the demo catalog. The databases are SQLite files in `ai-demo/db`, so the auth signing keys, sessions and refresh tokens survive restarts and one login keeps working (see pre-auth below).
 
 ```bash
 cd packages/backend
@@ -86,7 +86,7 @@ bash ai-demo/herdr.sh
 
 The script first stops anything listening on ports 7107 and 3100 (SIGTERM, then SIGKILL if the port stays busy) and prints what it stopped. It then opens an `ai-demo` tab with the backend (top left), the frontend (bottom left), and two stacked Claude Code panes on the right. The panes are named "with skills" (top) and "without skills" (bottom).
 
-- **With skills (top right):** waits for both servers, sources `env.sh`, and starts `backstage-cli auth login`. After you approve the consent page, it runs `claude-with-skills.sh`.
+- **With skills (top right):** waits for both servers, sources `env.sh`, and checks the session with `backstage-cli auth show --instance ai-demo`. It runs `backstage-cli auth login` (browser consent) only if that check fails, then runs `claude-with-skills.sh`.
 - **Without skills (bottom right):** runs `claude-without-skills.sh` right away, because it needs no backend.
 
 Focus stays on the backend pane. Click into a Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `lsof`.
@@ -111,11 +111,23 @@ source ai-demo/env.sh
 D=$DEMO
 ```
 
-### 4. Log in (browser consent, once per backend start)
+### 4. Log in (browser consent, once)
 
 ```bash
 backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo
 ```
+
+#### Pre-auth before the demo
+
+Do this once ahead of time so you never switch to a browser during the demo.
+
+1. Run `bash ai-demo/setup.sh` (regenerates the config with the database directory) and start the servers, for example with `bash ai-demo/herdr.sh`.
+2. In the "with skills" pane, approve the consent page in the browser when `auth login` opens it.
+3. Restart the backend (stop it and rerun `bash ai-demo/herdr.sh`). `backstage-cli auth show --instance ai-demo` should still print the user, and the with-skills pane should go straight to Claude Code without opening the browser.
+
+The CLI refreshes an expired access token with its stored refresh token. Refresh tokens last 30 days per rotation and up to 1 year in total by default, so one login lasts well past the demo. Do not delete `ai-demo/db` or `ai-demo/xdg-config` and `ai-demo/xdg-data` after pre-auth.
+
+To reset, stop the backend, delete the database directory with `rm -rf ai-demo/db`, and log in again. Deleting `ai-demo/xdg-config` and `ai-demo/xdg-data` clears the CLI side.
 
 ### 5. Check which skills apply
 
