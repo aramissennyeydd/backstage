@@ -142,6 +142,8 @@ bash $D/run-comparison.sh
 
 Resets each repo to its committed starting point, then for payments and growth runs `ai resolve`, `ai hooks install --agent claude-code`, a headless `claude -p "Reply with OK."` so the hook installs the skills, and then the refund prompt. The baseline gets the prompt without skills. Output lands in `$D/results` (`<name>.resolve.txt`, `.resolve.json`, `.skills.txt`, `.claude.txt`, `.diff`, `.src/`). Requires `claude` on the PATH.
 
+The script runs every `claude` call with `--setting-sources project,local --strict-mcp-config` (and no MCP config), so only the project settings load and no MCP servers run. Your user-level plugins, hooks and servers stay out, and the comparison isolates the skills. Managed organization settings still apply.
+
 ## The prompt (identical in all three repos)
 
 > Add a function in src/refunds.ts that issues a refund for a payment through our Payments Gateway, and add tests for it in src/refunds.test.ts. Follow this project's conventions.
