@@ -47,7 +47,8 @@ herdr pane rename "$wo" "without skills"
 
 herdr pane run "$be" "yarn start $CFG"
 herdr pane run "$fe" "BROWSER=none yarn start $CFG"
-# With skills: wait for the servers, log in (approve the consent page), then launch Claude Code.
-herdr pane run "$ws" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo && bash $DEMO/claude-with-skills.sh"
+# With skills: wait for the servers, log in only if the CLI has no valid session (pre-auth keeps it across
+# restarts, see DEMO.md), then launch Claude Code.
+herdr pane run "$ws" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && { backstage-cli auth show --instance ai-demo >/dev/null 2>&1 || backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo; } && bash $DEMO/claude-with-skills.sh"
 # Without skills: needs no backend, so it starts right away.
 herdr pane run "$wo" "bash $DEMO/claude-without-skills.sh"

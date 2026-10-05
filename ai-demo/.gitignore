@@ -11,4 +11,5 @@
 /logs/
 /xdg-config/
 /xdg-data/
+/db/
 node_modules

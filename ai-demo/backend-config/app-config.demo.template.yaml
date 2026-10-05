@@ -31,3 +31,9 @@ backend:
   baseUrl: http://localhost:7107
   listen:
     port: 7107
+  # Persist all plugin databases (auth signing keys, sessions, refresh tokens) so a CLI login
+  # survives backend restarts. Delete the db directory to reset.
+  database:
+    client: better-sqlite3
+    connection:
+      directory: '@@DEMO@@/db'
