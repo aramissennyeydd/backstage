@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Opens an "ai-demo" herdr tab: backend (top left), frontend (bottom left) and a demo shell (right).
+# Opens an "ai-demo" herdr tab: backend (top left), frontend (bottom left),
+# and two stacked Claude Code panes on the right: "with skills" (top) and "without skills" (bottom).
 # Stops anything already listening on the demo ports (7107, 3100) first.
 # Run from inside a herdr session after `bash setup.sh`. Requires jq and lsof.
 set -euo pipefail
@@ -37,9 +38,16 @@ free_port 3100
 
 tab=$(herdr tab create --label ai-demo --cwd "$WT/packages/backend" --focus)
 be=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
-sh=$(herdr pane split --pane "$be" --direction right --cwd "$DEMO/repo" --no-focus | jq -r '.result.pane.pane_id')
+ws=$(herdr pane split --pane "$be" --direction right --cwd "$DEMO/repo" --no-focus | jq -r '.result.pane.pane_id')
+wo=$(herdr pane split --pane "$ws" --direction down --cwd "$DEMO/baseline-repo" --no-focus | jq -r '.result.pane.pane_id')
 fe=$(herdr pane split --pane "$be" --direction down --cwd "$WT/packages/app" --no-focus | jq -r '.result.pane.pane_id')
+
+herdr pane rename "$ws" "with skills"
+herdr pane rename "$wo" "without skills"
 
 herdr pane run "$be" "yarn start $CFG"
 herdr pane run "$fe" "BROWSER=none yarn start $CFG"
-herdr pane run "$sh" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo"
+# With skills: wait for the servers, log in (approve the consent page), then launch Claude Code.
+herdr pane run "$ws" "until curl -sf localhost:7107/.backstage/health/v1/readiness >/dev/null && curl -sf localhost:3100 >/dev/null; do sleep 2; done; source $DEMO/env.sh && backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo && bash $DEMO/claude-with-skills.sh"
+# Without skills: needs no backend, so it starts right away.
+herdr pane run "$wo" "bash $DEMO/claude-without-skills.sh"
