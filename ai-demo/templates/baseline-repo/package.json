@@ -1,0 +1,9 @@
+{
+  "name": "payments-service-demo",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@backstage/cli-module-ai": "*",
+    "@backstage/cli-module-auth": "*"
+  }
+}

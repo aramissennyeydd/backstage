@@ -1,0 +1,154 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: engineering
+spec:
+  type: team
+  children: [platform, payments, growth]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: payments
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: growth
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: demo-user
+spec:
+  memberOf: [engineering]
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: checkout
+spec:
+  owner: payments
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: marketing
+spec:
+  owner: growth
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payments-service
+  annotations:
+    github.com/project-slug: acme-demo/payments-service
+spec:
+  type: service
+  lifecycle: production
+  owner: payments
+  system: checkout
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: growth-service
+  annotations:
+    github.com/project-slug: acme-demo/growth-service
+spec:
+  type: service
+  lifecycle: production
+  owner: growth
+  system: marketing
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: commenting-standards
+  description: 'Org-wide, reaches every team via the ancestor group engineering'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/commenting-standards'
+spec:
+  type: skill
+  lifecycle: production
+  owner: engineering
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: payments-code-shape
+  description: 'Payments team code conventions'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/payments-code-shape'
+spec:
+  type: skill
+  lifecycle: production
+  owner: payments
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: payments-testing
+  description: 'Payments team testing conventions'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/payments-testing'
+spec:
+  type: skill
+  lifecycle: production
+  owner: payments
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: growth-testing
+  description: 'Growth team testing conventions'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/growth-testing'
+spec:
+  type: skill
+  lifecycle: production
+  owner: growth
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: payments-gateway-integration
+  description: 'Payments Gateway integration (system checkout)'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/payments-gateway-integration'
+spec:
+  type: skill
+  lifecycle: production
+  owner: payments
+  system: checkout
+  dependsOn:
+    - airesource:default/api-error-handling
+---
+apiVersion: backstage.io/v1alpha1
+kind: AiResource
+metadata:
+  name: api-error-handling
+  description: 'Platform error handling (reached only via dependsOn)'
+  annotations:
+    backstage.io/source-location: 'file:@@DEMO@@/team-skills/skills/api-error-handling'
+spec:
+  type: skill
+  lifecycle: production
+  owner: platform
