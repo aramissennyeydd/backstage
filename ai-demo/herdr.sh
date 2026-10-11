@@ -24,7 +24,7 @@ herdr pane rename "$ws" "with skills"
 herdr pane rename "$wo" "without skills"
 
 herdr pane run "$be" "bash $DEMO/watch-skills.sh $DEMO/repo"
-herdr pane run "$fe" "source $DEMO/lib.sh && ai resolve --agent claude-code \${FLAGS[@]}"
+herdr pane run "$fe" "bash $DEMO/show-resolve.sh $DEMO/repo"
 # With skills: setup.sh already logged in; keep the guard as a fallback if the session is gone.
 herdr pane run "$ws" "source $DEMO/env.sh && { backstage-cli auth show --instance ai-demo >/dev/null 2>&1 || backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo; } && bash $DEMO/claude-with-skills.sh"
 herdr pane run "$wo" "bash $DEMO/claude-without-skills.sh"
