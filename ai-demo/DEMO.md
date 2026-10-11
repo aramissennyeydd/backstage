@@ -23,7 +23,7 @@ Groups: `engineering` (root) with children `platform`, `payments`, `growth`. `de
 | payments-gateway-integration | payments    | checkout | api-error-handling | payments-service (system)             |
 | api-error-handling           | platform    | -        | -                  | payments-service only via `dependsOn` |
 
-Note: `ai resolve` shows "User groups: -" because the guest login's ownership claim contains only the user ref. Membership in `engineering` is not what drives selection here, the component owner's ancestors are.
+Note: `ai resolve` shows `group:default/engineering` under "User groups" and "-" under "Ancestor groups". Membership in `engineering` is not what drives selection here, the component owner's ancestors are.
 
 Expected skills per repo:
 
