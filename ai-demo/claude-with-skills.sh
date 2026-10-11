@@ -13,6 +13,11 @@ if ! ai hooks install --agent claude-code "${FLAGS[@]}"; then
 fi
 # Claude Code registers skills by scanning .claude/skills at startup, before the SessionStart hook runs.
 # Install them now so they load as real skills; the hook then finds them installed and skips them.
+# Wait for the presenter first, so the skills status pane can show them as missing beforehand.
+if [ -t 0 ]; then
+  echo
+  read -r -p "Skills are not installed yet. Press Enter to install them from Backstage... "
+fi
 if ! ai skills sync --agent claude-code "${FLAGS[@]}"; then
   echo "ai skills sync failed. Check that the backend is running and you are logged in (see above)." >&2
   exit 1
