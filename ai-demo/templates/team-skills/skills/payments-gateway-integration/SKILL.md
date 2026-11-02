@@ -21,7 +21,7 @@ Conventions:
 - Never log card numbers/PAN or full request bodies; log ids only.
 - Map gateway error codes from the contract to typed errors, for example `REFUND_EXCEEDS_CAPTURE` -> `RefundExceedsCaptureError`, `PAYMENT_NOT_FOUND` -> `PaymentNotFoundError`.
 - Amounts are integers in **minor units** only (cents), never floats.
-- Put the facts in named constants so they are easy to update.
+- Put the facts in named constants so they are easy to update, including the runbook's per caller rate limit (for example `RATE_LIMIT_PER_SECOND`), and document it in the TSDoc of the refund function.
 
 ```ts
 // Source: Backstage api:default/payments-gateway and the gateway runbook (TechDocs).
