@@ -27,5 +27,8 @@ echo "Installed $count skills from Backstage; they load when Claude starts."
 echo
 echo "Skills that apply to this repo:"
 ai resolve --agent claude-code "${FLAGS[@]}" || echo "ai resolve failed, continuing." >&2
+# Backstage MCP: the agent looks up the gateway API, runbook and owning team. Fail fast if it is broken.
+mcp_flags || exit 1
+mcp_tool_count || exit 1
 print_prompt
-exec "${CLAUDE[@]}"
+exec "${CLAUDE[@]}" "${MCP_ARGS[@]}"

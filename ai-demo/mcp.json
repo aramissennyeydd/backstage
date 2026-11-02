@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "backstage": {
+      "type": "http",
+      "url": "http://localhost:7107/api/mcp-actions/v1/backstage",
+      "headers": {
+        "Authorization": "Bearer ${BACKSTAGE_TOKEN}"
+      }
+    }
+  }
+}
