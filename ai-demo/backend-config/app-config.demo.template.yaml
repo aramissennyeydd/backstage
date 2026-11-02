@@ -57,7 +57,20 @@ mcpActions:
       instructions: Look up API entities and the owning Group in the catalog, and search TechDocs for runbooks.
       filter:
         include:
-          - id: '*get-catalog-entity'
-          - id: '*query-catalog-entities'
-          - id: '*search.query'
-          - id: '*get-techdocs-metadata'
+          - id: 'catalog:get-catalog-entity'
+          - id: 'catalog:query-catalog-entities'
+          - id: 'search:query'
+          - id: 'techdocs:get-techdocs-metadata'
+# The search index is in memory and rebuilt on every start, so index quickly and often.
+search:
+  collators:
+    techdocs:
+      schedule:
+        frequency: { seconds: 30 }
+        timeout: { minutes: 2 }
+        initialDelay: { seconds: 10 }
+    catalog:
+      schedule:
+        frequency: { seconds: 30 }
+        timeout: { minutes: 2 }
+        initialDelay: { seconds: 5 }

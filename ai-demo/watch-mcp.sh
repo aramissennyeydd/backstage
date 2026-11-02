@@ -6,5 +6,6 @@ DEMO="$(cd "$(dirname "$0")" && pwd)"
 LOG="$DEMO/logs/backend.log"
 echo "Backstage MCP calls (from $LOG)"
 echo
-tail -n 0 -F "$LOG" | grep --line-buffered -iE 'mcp-actions|mcp.*(tools/call|tool)|actions.*invoke' \
-  | sed -E 's/\x1b\[[0-9;]*m//g'
+# The backend writes one audit line per tool call: mcp-actions.tool-execution with meta={"toolName":...}.
+tail -n 0 -F "$LOG" | grep --line-buffered 'mcp-actions.tool-execution' \
+  | perl -ne 'BEGIN { $| = 1 } s/\e\[[0-9;]*m//g; print "$1  $3  $2\n" if /(\d\d:\d\d:\d\d)\.\d+Z.*?toolName":"([^"]+).*?status="(\w+)"/'

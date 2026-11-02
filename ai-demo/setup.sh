@@ -85,6 +85,10 @@ fi
 free_port "$BACKEND_PORT"
 free_port "$FRONTEND_PORT"
 
+# The search index lives in memory but its scheduler state persists, so without this a restart would
+# not reindex for up to 10 minutes. Only search.sqlite is removed: it holds no login state.
+rm -f "$DEMO"/db/search.sqlite*
+
 CFG="--config ../../app-config.yaml --config $DEMO/backend-config/app-config.demo.yaml"
 
 # env -u keeps the CLI login dirs from env.sh (sourced by lib.sh) out of the dev servers.
