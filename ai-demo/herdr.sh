@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Opens an "ai-demo" herdr tab: a live `ai skills status` view of repo/ (top left), `ai resolve` for
-# repo/ (bottom left), and two stacked Claude Code panes on the right: "with skills" (top) and
+# Opens an "ai-demo" herdr tab: a live `ai skills status` view of repo/ (top left), the live Backstage MCP calls
+# (bottom left), and two stacked Claude Code panes on the right: "with skills" (top) and
 # "without skills" (bottom). Server logs stay in ai-demo/logs.
 # Does not start or stop servers: run `bash ai-demo/setup.sh` first. Requires jq, curl and herdr.
 set -euo pipefail
@@ -19,12 +19,12 @@ wo=$(herdr pane split --pane "$ws" --direction down --cwd "$DEMO/baseline-repo" 
 fe=$(herdr pane split --pane "$be" --direction down --cwd "$DEMO/repo" --no-focus | jq -r '.result.pane.pane_id')
 
 herdr pane rename "$be" "skills status"
-herdr pane rename "$fe" "ai resolve"
+herdr pane rename "$fe" "MCP calls"
 herdr pane rename "$ws" "with skills"
 herdr pane rename "$wo" "without skills"
 
 herdr pane run "$be" "bash $DEMO/watch-skills.sh $DEMO/repo"
-herdr pane run "$fe" "bash $DEMO/show-resolve.sh $DEMO/repo"
+herdr pane run "$fe" "bash $DEMO/watch-mcp.sh"
 # With skills: setup.sh already logged in; keep the guard as a fallback if the session is gone.
 herdr pane run "$ws" "source $DEMO/env.sh && { backstage-cli auth show --instance ai-demo >/dev/null 2>&1 || backstage-cli auth login --backend-url http://localhost:7107 --instance ai-demo; } && bash $DEMO/claude-with-skills.sh"
 herdr pane run "$wo" "bash $DEMO/claude-without-skills.sh"
