@@ -3,6 +3,7 @@
 /growth-repo/
 /baseline-repo/
 /team-skills/
+/gateway-docs/
 /backend-config/catalog-demo.yaml
 /backend-config/app-config.demo.yaml
 
@@ -12,4 +13,5 @@
 /xdg-config/
 /xdg-data/
 /db/
+/techdocs-site/
 node_modules

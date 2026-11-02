@@ -44,6 +44,10 @@ make_repo growth-repo https://github.com/acme-demo/growth-service.git "starting 
 make_repo baseline-repo https://github.com/acme-demo/payments-service.git "starting point"
 make_repo team-skills "" "Demo team skills"
 
+# Gateway runbook sources (the API entity's techdocs-ref points here).
+rm -rf "$DEMO/gateway-docs"
+cp -R "$TEMPLATES/gateway-docs" "$DEMO/gateway-docs"
+
 for name in catalog-demo app-config.demo; do
   sed "s|@@DEMO@@|$DEMO|g" "$DEMO/backend-config/$name.template.yaml" > "$DEMO/backend-config/$name.yaml"
 done
@@ -58,6 +62,25 @@ fi
 . "$DEMO/lib.sh"
 LOGS="$DEMO/logs"
 mkdir -p "$LOGS"
+
+# Prebuild the gateway runbook with the TechDocs CLI (Docker generator) into the local publisher
+# layout, so the TechDocs search collator indexes it on the first run. Skipped when up to date.
+mkdir -p "$DEMO/logs"
+SITE="$DEMO/techdocs-site/default/api/payments-gateway"
+if [ -f "$SITE/index.html" ] && [ -z "$(find "$TEMPLATES/gateway-docs" -type f -newer "$SITE/index.html" 2>/dev/null)" ]; then
+  echo "TechDocs for the gateway runbook are up to date."
+else
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running. Start Docker, the TechDocs generator needs it (docker image pull happens once)." >&2
+    exit 1
+  fi
+  echo "Generating TechDocs for the gateway runbook (the first run pulls a Docker image)..."
+  rm -rf "$SITE"
+  mkdir -p "$SITE"
+  yarn --cwd "$WT" techdocs-cli generate --source-dir "$DEMO/gateway-docs" --output-dir "$SITE" \
+    >"$DEMO/logs/techdocs-generate.log" 2>&1 || true
+  [ -f "$SITE/index.html" ] || { echo "TechDocs generation failed, see $DEMO/logs/techdocs-generate.log" >&2; tail -n 20 "$DEMO/logs/techdocs-generate.log" >&2; exit 1; }
+fi
 
 free_port "$BACKEND_PORT"
 free_port "$FRONTEND_PORT"
