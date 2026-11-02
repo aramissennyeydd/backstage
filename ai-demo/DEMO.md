@@ -50,7 +50,7 @@ Repo remotes: `repo` and `baseline-repo` use `https://github.com/acme-demo/payme
 - `backend-config/*.template.yaml`: catalog and app config with a `@@DEMO@@` placeholder.
 - `templates/gateway-docs`: the gateway runbook (MkDocs source).
 - `mcp.json`: the MCP client config (no secrets).
-- `env.sh`, `lib.sh`, `setup.sh`, `stop.sh`, `herdr.sh`, `watch-mcp.sh`, `run-comparison.sh`.
+- `env.sh`, `lib.sh`, `setup.sh`, `stop.sh`, `herdr.sh`, `act1-baseline.sh`, `act2-skills.sh`, `card.sh`, `watch-mcp.sh`, `run-comparison.sh`.
 
 `setup.sh` generates the working copies (ignored by git): `repo/`, `growth-repo/`, `baseline-repo/` (each a fresh `git init` with a "starting point" commit and its `origin`), `team-skills/` (a local git repo), the `node_modules/@backstage` symlinks, and `backend-config/catalog-demo.yaml` and `app-config.demo.yaml`. `results/`, `logs/`, `xdg-config/` and `xdg-data/` are created while running and are ignored by git too.
 
@@ -84,18 +84,21 @@ To reset, run `bash $D/stop.sh`, then `rm -rf ai-demo/db`, then `bash $D/setup.s
 
 ### 2. Show the demo with `herdr`
 
-From inside a `herdr` session, after `setup.sh`:
+From inside a `herdr` session, one act at a time:
 
 ```bash
-bash ai-demo/herdr.sh
+bash ai-demo/herdr.sh 1   # Act 1: baseline, no skills, no Backstage (default)
+bash ai-demo/herdr.sh 2   # Act 2: team skills + Backstage MCP
 ```
 
-If either server is down, the script prints "Run `bash ai-demo/setup.sh` first" and exits non-zero before creating a tab. Otherwise it opens an `ai-demo` tab. The left column holds `ai skills status` (top) and an "MCP calls" pane (bottom) that tails `logs/backend.log` filtered to `/api/mcp-actions` requests, so the audience sees the agent reading the API entity and the runbook live. `show-resolve.sh` is still there for manual use. The right column holds the Claude Code panes "with skills" (top) and "without skills" (bottom).
+`herdr.sh all` opens both tabs with Act 1 focused. Act 1 needs no servers. For Act 2, if either server is down the script prints "Run `bash ai-demo/setup.sh` first" and exits non-zero before creating a tab.
 
-- **With skills:** checks the session with `backstage-cli auth show --instance ai-demo` and runs `auth login` only as a fallback, then runs `claude-with-skills.sh`, which also loads the Backstage MCP server.
-- **Without skills:** runs `claude-without-skills.sh`, which needs no backend.
+Each act opens in its own tab and starts with a full-pane title card that says what the act shows and what to watch for. It waits for Enter. Every pane has a name and a header line.
 
-Focus stays on the left. Click into a Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `curl`.
+- **Act 1 (`act1-baseline.sh`):** one pane running `claude-without-skills.sh`. When Claude exits it prints the command for Act 2.
+- **Act 2 (`act2-skills.sh`):** the right pane shows the card, checks the session with `backstage-cli auth show --instance ai-demo` (running `auth login` only as a fallback), then runs `claude-with-skills.sh`, which also loads the Backstage MCP server. The left column holds the live `ai skills status` pane (top) and the "MCP calls" pane (bottom), which tails `logs/backend.log` filtered to `/api/mcp-actions` requests. `show-resolve.sh` is still there for manual use.
+
+Focus stays on the new tab. Click into the Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `curl`. Title card helpers live in `card.sh`.
 
 ### 3. Or run it by hand
 

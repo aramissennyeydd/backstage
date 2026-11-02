@@ -9,7 +9,9 @@ cd "${1:?usage: watch-skills.sh <repo-dir>}"
 while true; do
   out=$(FORCE_COLOR=1 ai skills status --agent claude-code "${FLAGS[@]}" 2>&1)
   clear
-  echo "ai skills status ($(basename "$PWD"), refreshed $(date +%H:%M:%S))"
+  echo "SKILLS STATUS: which team skills are installed in this repo (refreshed $(date +%H:%M:%S))"
+  echo "Expect them missing until Act 2 syncs them from Backstage."
+  echo "ai skills status, repo: $(basename "$PWD")"
   echo
   echo "$out"
   sleep 2

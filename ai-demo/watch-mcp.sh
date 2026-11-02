@@ -4,7 +4,8 @@
 set -uo pipefail
 DEMO="$(cd "$(dirname "$0")" && pwd)"
 LOG="$DEMO/logs/backend.log"
-echo "Backstage MCP calls (from $LOG)"
+echo "BACKSTAGE MCP CALLS: what the Act 2 agent asks Backstage (time, status, tool)"
+echo "Source: $LOG. Act 1 makes no calls."
 echo
 # The backend writes one audit line per tool call: mcp-actions.tool-execution with meta={"toolName":...}.
 tail -n 0 -F "$LOG" | grep --line-buffered 'mcp-actions.tool-execution' \
