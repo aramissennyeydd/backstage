@@ -6,9 +6,9 @@ Everything runs from this checkout. `ai-demo/` is the demo directory (`$DEMO`) a
 
 ## Story
 
-Two teams, one prompt. The payments team and the growth team both ask a coding agent to "add a refund function and tests, following this project's conventions". Neither repo contains any agent instructions. Each repo's session start hook asks the Backstage catalog which skills apply to the component behind the git remote, installs exactly those, and the agent writes code that matches its team. Payments gets injected clients, typed errors, idempotency keys, bounded retries and builder-based multi-assertion tests. Growth gets a plain function and table-driven `it.each` tests. A third repo with no skills gets nothing built at all, only questions, because it has no conventions to follow.
+Two teams, one prompt. The payments team and the growth team both ask a coding agent to "add a function that refunds a batch of payments, and tests, following this project's conventions". Neither repo contains any agent instructions. Each repo's session start hook asks the Backstage catalog which skills apply to the component behind the git remote, installs exactly those, and the agent writes code that matches its team. Payments gets injected clients, typed errors, idempotency keys, bounded retries and builder-based multi-assertion tests. Growth gets a plain function and table-driven `it.each` tests. A third repo with no skills gets nothing built at all, only questions, because it has no conventions to follow.
 
-The punchline: **skills carry the conventions, Backstage carries the facts.** The gateway skill no longer lists the limits. The "with skills" agent also gets the Backstage MCP server, reads the `payments-gateway` API entity and the gateway runbook in TechDocs, and writes code that cites them: 20 req/s per caller, 4 attempts, `Retry-After` in seconds, an `X-Gateway-Caller: payments-service` header. Those facts exist only in Backstage, so a model cannot guess them.
+The punchline: **skills carry the conventions, Backstage carries the facts.** The gateway skill no longer lists the limits. The "with skills" agent also gets the Backstage MCP server, reads the `payments-gateway` API entity and the gateway runbook in TechDocs, and writes code that cites them: it throttles the batch to the runbook's 20 req/s per caller, makes at most 4 attempts, honors `Retry-After` in seconds and sends an `X-Gateway-Caller: payments-service` header. Neither the prompt nor the skill gives the limit, but a batch of thousands needs one, so the agent has to look it up. Those facts exist only in Backstage, so a model cannot guess them.
 
 ## Catalog setup
 
@@ -170,13 +170,13 @@ Codex does not run a project hook until you approve it. Start `codex` in the rep
 bash $D/run-comparison.sh
 ```
 
-Resets each repo to its committed starting point, then for payments and growth runs `ai resolve`, `ai hooks install --agent claude-code`, a headless `claude -p "Reply with OK."` so the hook installs the skills, and then the refund prompt. The baseline gets the prompt without skills. The payments run also gets the Backstage MCP server and runs with `--output-format stream-json`. Output lands in `$D/results` (`<name>.resolve.txt`, `.resolve.json`, `.skills.txt`, `.claude.txt`, `.diff`, `.src/`), and for payments also `payments.mcp.txt` (the MCP tool calls) and `payments.stream.jsonl`. Check that `payments.diff` contains `X-Gateway-Caller`, 4 attempts and 20 req/s, and that growth and baseline do not. Requires `claude` on the PATH.
+Resets each repo to its committed starting point, then for payments and growth runs `ai resolve`, `ai hooks install --agent claude-code`, a headless `claude -p "Reply with OK."` so the hook installs the skills, and then the refund prompt. The baseline gets the prompt without skills. The payments run also gets the Backstage MCP server and runs with `--output-format stream-json`. Output lands in `$D/results` (`<name>.resolve.txt`, `.resolve.json`, `.skills.txt`, `.claude.txt`, `.diff`, `.src/`), and for payments also `payments.mcp.txt` (the MCP tool calls) and `payments.stream.jsonl`. Check that `payments.diff` contains `X-Gateway-Caller`, 4 attempts and a batch throttled to 20 req/s, and that growth and baseline do not (they pick an arbitrary concurrency instead). Requires `claude` on the PATH.
 
 The script runs every `claude` call with `--setting-sources project,local --strict-mcp-config`, so only the project settings load. Only the payments run passes `--mcp-config` (the Backstage server), growth and baseline load no MCP servers. Your user-level plugins, hooks and servers stay out, and the comparison isolates the skills. Managed organization settings still apply.
 
 ## The prompt (identical in all three repos)
 
-> Add a function in src/refunds.ts that issues a refund for a payment through our Payments Gateway, and add tests for it in src/refunds.test.ts. Follow this project's conventions.
+> Add a function in src/refunds.ts that refunds a batch of payments through our Payments Gateway (after an outage, support sometimes needs to refund a few thousand at once), and add tests for it in src/refunds.test.ts. Follow this project's conventions.
 
 Run with `--permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 15` (no Bash, so nothing is executed or installed).
 
@@ -187,7 +187,7 @@ cd $D/repo
 backstage-cli ai hooks install --agent claude-code --allow-file-sources --instance ai-demo
 claude -p "Reply with OK." --max-turns 1          # SessionStart hook installs .claude/skills
 ls .claude/skills
-claude -p "Add a function in src/refunds.ts that issues a refund for a payment through our Payments Gateway, and add tests for it in src/refunds.test.ts. Follow this project's conventions." \
+claude -p "Add a function in src/refunds.ts that refunds a batch of payments through our Payments Gateway (after an outage, support sometimes needs to refund a few thousand at once), and add tests for it in src/refunds.test.ts. Follow this project's conventions." \
   --permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 15
 # repeat in $D/growth-repo and $D/baseline-repo (skip resolve/hooks for the baseline)
 ```
@@ -196,8 +196,8 @@ claude -p "Add a function in src/refunds.ts that issues a refund for a payment t
 
 Models are nondeterministic, so a re-run produces different code, but the pattern was stable.
 
-- Payments (5 skills): injected `GatewayClient`, explicit return types, an idempotency key generated once outside the retry loop, retries only on 429 and 503 with a max of 3 attempts, typed errors (`UpstreamError`, `PaymentNotFoundError`, `RefundExceedsCaptureError`), TSDoc on exports, and tests with builders, a fake gateway at the HTTP boundary and behavior-named multi-assertion cases.
-- Growth (2 skills): no gateway skill, so the agent invented a `PaymentsGateway.refund()` interface with plain `Error`s, but TSDoc from the shared commenting-standards skill and `it.each` tables from growth-testing.
-- Baseline (no skills): wrote no code. It found no gateway client, URL, test runner or conventions and replied with questions.
+- Payments (5 skills, Backstage MCP): it fetched `api:payments-gateway` and searched TechDocs for the runbook, then wrote `issueRefund` and `refundBatch` with an injected `GatewayClient`. The constants cite both sources: `X-Gateway-Caller: payments-service`, `MAX_ATTEMPTS = 4`, retries only on 429 and 503, and `RATE_LIMIT_PER_SECOND = 20`. The batch sends half of that per one-second window so retries fit in the same budget. It generates the idempotency key once outside the retry loop and returns it per payment for safe re-runs. It has typed errors (`UpstreamError`, `PaymentNotFoundError`, `RefundExceedsCaptureError`), TSDoc on exports, and tests with builders, a fake gateway at the HTTP boundary and a test that the batch stays under the limit.
+- Growth (2 skills, no MCP): no gateway skill, so the agent invented a `PaymentsGateway` interface with plain `Error`s and a guessed `DEFAULT_CONCURRENCY = 10` with no rate limit, no caller header and no retry policy. It has TSDoc from the shared commenting-standards skill and `it.each` tables from growth-testing.
+- Baseline (no skills): wrote a generic `refundPayments` with an invented `PaymentsGateway` interface and the same guessed concurrency of 10. It has no rate limit, no caller header, no retries and no typed errors.
 
-Honest notes: payments had one `catch { return undefined; }` that brushes against api-error-handling, and growth mixed `it.each` with a few standalone cases. Neither repo has a test runner, so tests are never run.
+Honest notes: the payments throttle is a fixed one-second window, not a token bucket, and the agent chose the half-limit headroom on its own. Neither repo has a test runner, so tests are never run.

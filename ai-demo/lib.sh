@@ -7,7 +7,7 @@ FLAGS=(--allow-file-sources --instance ai-demo)
 # passed with --mcp-config (--strict-mcp-config). Without mcp_flags nothing is loaded, so the repos
 # differ only by the installed skills and, for the payments run, the Backstage MCP server.
 CLAUDE=(claude --setting-sources project,local --strict-mcp-config)
-PROMPT="Add a function in src/refunds.ts that issues a refund for a payment through our Payments Gateway, and add tests for it in src/refunds.test.ts. Follow this project's conventions."
+PROMPT="Add a function in src/refunds.ts that refunds a batch of payments through our Payments Gateway (after an outage, support sometimes needs to refund a few thousand at once), and add tests for it in src/refunds.test.ts. Follow this project's conventions."
 
 reset_repo() { # dir: back to the committed starting point, no skills/hooks
   git -C "$1" reset -q --hard HEAD; git -C "$1" clean -qfdx -e node_modules
