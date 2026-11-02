@@ -4,7 +4,7 @@ metadata:
   name: engineering
 spec:
   type: team
-  children: [platform, payments, growth]
+  children: [platform, payments, growth, gateway-platform]
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Group
@@ -31,6 +31,19 @@ metadata:
 spec:
   type: team
   parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: gateway-platform
+  description: Owns the Payments Gateway
+spec:
+  type: team
+  parent: engineering
+  profile:
+    displayName: Gateway Platform
+    email: gateway-platform@acme-demo.example
   children: []
 ---
 apiVersion: backstage.io/v1alpha1
@@ -65,6 +78,7 @@ spec:
   lifecycle: production
   owner: payments
   system: checkout
+  consumesApis: [payments-gateway]
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -77,6 +91,61 @@ spec:
   lifecycle: production
   owner: growth
   system: marketing
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: payments-gateway
+  description: Payments Gateway refund API (runbook in TechDocs)
+  annotations:
+    backstage.io/techdocs-ref: dir:@@DEMO@@/gateway-docs
+  links:
+    - url: https://acme-demo.slack.com/archives/gateway-platform
+      title: '#gateway-platform on Slack'
+spec:
+  type: openapi
+  lifecycle: production
+  owner: gateway-platform
+  system: checkout
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Payments Gateway
+      version: '2.0.0'
+    servers:
+      - url: https://payments-gateway.internal/v2
+    paths:
+      /refunds:
+        post:
+          summary: Refund a captured payment
+          parameters:
+            - in: header
+              name: Idempotency-Key
+              required: true
+              schema: { type: string, format: uuid }
+            - in: header
+              name: X-Gateway-Caller
+              required: true
+              description: Calling service name, for example payments-service
+              schema: { type: string }
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [paymentId, amountMinor, currency, reason]
+                  properties:
+                    paymentId: { type: string }
+                    amountMinor: { type: integer, description: Amount in minor units }
+                    currency: { type: string }
+                    reason: { type: string }
+          responses:
+            '200': { description: Refund issued }
+            '404': { description: 'PAYMENT_NOT_FOUND' }
+            '409': { description: 'REFUND_EXCEEDS_CAPTURE' }
+            '429': { description: Rate limited, see Retry-After (seconds) }
+            '503': { description: Temporarily unavailable }
 ---
 apiVersion: backstage.io/v1alpha1
 kind: AiResource
