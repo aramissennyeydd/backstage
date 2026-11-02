@@ -8,6 +8,11 @@
 set -euo pipefail
 DEMO="$(cd "$(dirname "$0")" && pwd)"
 . "$DEMO/lib.sh"
+# herdr panes start fresh shells, so pass DEMO_MODEL through explicitly.
+ENVP=""
+if [ -n "${DEMO_MODEL:-}" ]; then
+  ENVP="DEMO_MODEL=$(printf %q "$DEMO_MODEL") "
+fi
 
 act=${1:-1}
 case "$act" in 1 | 2 | all) ;; *)
@@ -26,7 +31,7 @@ act1() {
   tab=$(herdr tab create --label "act 1: baseline" --cwd "$DEMO/baseline-repo" --focus)
   pane=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
   herdr pane rename "$pane" "Act 1: no skills, no Backstage" >/dev/null
-  herdr pane run "$pane" "bash $DEMO/act1-baseline.sh" >/dev/null
+  herdr pane run "$pane" "${ENVP}bash $DEMO/act1-baseline.sh" >/dev/null
 }
 
 act2() {
@@ -40,7 +45,7 @@ act2() {
   herdr pane rename "$claude" "Act 2: skills + Backstage MCP" >/dev/null
   herdr pane run "$status" "bash $DEMO/watch-skills.sh $DEMO/repo" >/dev/null
   herdr pane run "$mcp" "bash $DEMO/watch-mcp.sh" >/dev/null
-  herdr pane run "$claude" "bash $DEMO/act2-skills.sh" >/dev/null
+  herdr pane run "$claude" "${ENVP}bash $DEMO/act2-skills.sh" >/dev/null
 }
 
 case "$act" in

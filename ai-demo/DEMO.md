@@ -93,6 +93,8 @@ bash ai-demo/herdr.sh 2   # Act 2: team skills + Backstage MCP
 
 `herdr.sh all` opens both tabs with Act 1 focused. Act 1 needs no servers. For Act 2, if either server is down the script prints "Run `bash ai-demo/setup.sh` first" and exits non-zero before creating a tab.
 
+To run every Claude Code session on another model, set `DEMO_MODEL` to any `claude --model` value, for example `DEMO_MODEL=haiku bash ai-demo/herdr.sh`. It also applies to `run-comparison.sh` and the standalone scripts.
+
 Each act opens in its own tab and starts with a full-pane title card that says what the act shows and what to watch for. It waits for Enter. Every pane has a name and a header line.
 
 - **Act 1 (`act1-baseline.sh`):** one pane running `claude-without-skills.sh`. When Claude exits it shows an end-of-act card and waits for Enter before opening Act 2. If Claude exits within 10 seconds it offers a restart instead of moving on.
