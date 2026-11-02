@@ -11,6 +11,10 @@ CLAUDE=(claude --setting-sources project,local --strict-mcp-config)
 if [ -n "${DEMO_MODEL:-}" ]; then
   CLAUDE+=(--model "$DEMO_MODEL")
 fi
+# DEMO_EFFORT=low (low, medium, high, xhigh, max) caps thinking for faster sessions.
+if [ -n "${DEMO_EFFORT:-}" ]; then
+  CLAUDE+=(--effort "$DEMO_EFFORT")
+fi
 PROMPT="Add a function in src/refunds.ts that refunds a batch of payments through our Payments Gateway (after an outage, support sometimes needs to refund a few thousand at once), and add tests for it in src/refunds.test.ts. Follow this project's conventions."
 
 reset_repo() { # dir: back to the committed starting point, no skills/hooks

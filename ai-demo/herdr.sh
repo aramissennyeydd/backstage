@@ -8,11 +8,13 @@
 set -euo pipefail
 DEMO="$(cd "$(dirname "$0")" && pwd)"
 . "$DEMO/lib.sh"
-# herdr panes start fresh shells, so pass DEMO_MODEL through explicitly.
+# herdr panes start fresh shells, so pass DEMO_MODEL and DEMO_EFFORT through explicitly.
 ENVP=""
-if [ -n "${DEMO_MODEL:-}" ]; then
-  ENVP="DEMO_MODEL=$(printf %q "$DEMO_MODEL") "
-fi
+for var in DEMO_MODEL DEMO_EFFORT; do
+  if [ -n "${!var:-}" ]; then
+    ENVP+="$var=$(printf %q "${!var}") "
+  fi
+done
 
 act=${1:-1}
 case "$act" in 1 | 2 | all) ;; *)
