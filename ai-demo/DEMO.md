@@ -95,7 +95,7 @@ bash ai-demo/herdr.sh 2   # Act 2: team skills + Backstage MCP
 
 Each act opens in its own tab and starts with a full-pane title card that says what the act shows and what to watch for. It waits for Enter. Every pane has a name and a header line.
 
-- **Act 1 (`act1-baseline.sh`):** one pane running `claude-without-skills.sh`. When Claude exits it prints the command for Act 2.
+- **Act 1 (`act1-baseline.sh`):** one pane running `claude-without-skills.sh`. When Claude exits it shows an end-of-act card and waits for Enter before opening Act 2. If Claude exits within 10 seconds it offers a restart instead of moving on.
 - **Act 2 (`act2-skills.sh`):** the right pane shows the card, checks the session with `backstage-cli auth show --instance ai-demo` (running `auth login` only as a fallback), then runs `claude-with-skills.sh`, which also loads the Backstage MCP server. The left column holds the live `ai skills status` pane (top) and the "MCP calls" pane (bottom), which tails `logs/backend.log` filtered to `/api/mcp-actions` requests. `show-resolve.sh` is still there for manual use.
 
 Focus stays on the new tab. Click into the Claude Code pane and paste the printed prompt to drive the demo. Requires `jq` and `curl`. Title card helpers live in `card.sh`.

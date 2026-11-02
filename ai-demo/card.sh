@@ -2,7 +2,7 @@
 # Title cards and pane headers for the herdr demo. Source it, don't run it.
 # card <title> <subtitle> <line>...  clears the pane, prints a big title card, waits for Enter.
 # header <text>                      prints a one-line pane header.
-# Plain ANSI only; falls back to unstyled text when stdout is not a terminal.
+# Set CARD_PROMPT to change the "Press Enter" text. Plain ANSI only; falls back to unstyled text when stdout is not a terminal.
 if [ -t 1 ]; then
   C_BOLD=$'\e[1m'; C_DIM=$'\e[2m'; C_CYAN=$'\e[36m'; C_RESET=$'\e[0m'
 else
@@ -29,7 +29,7 @@ card() {
   done
   echo
   if [ -t 0 ]; then
-    read -r -p "  ${C_DIM}Press Enter to start... ${C_RESET}"
+    read -r -p "  ${C_DIM}${CARD_PROMPT:-Press Enter to start... }${C_RESET}"
   fi
   if [ -t 1 ]; then clear; fi
 }
