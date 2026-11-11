@@ -71,6 +71,8 @@ Scan the repository for merged pull requests and code changes from the last 7 da
 
 ## Task Steps
 
+This is a test run: document at most 3 of the most user-facing changes, and keep each edit small.
+
 ### 1. Scan Recent Activity (Last 7 Days)
 
 First, search for merged pull requests from the last 7 days.
@@ -78,9 +80,9 @@ First, search for merged pull requests from the last 7 days.
 Use the GitHub tools to:
 
 - Calculate the date seven days ago: `date -u -d "7 days ago" +%Y-%m-%d`
-- Search for pull requests merged in the last 7 days using `search_pull_requests` with a query like: `repo:${{ github.repository }} is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with that date)
+- Search for pull requests merged in the last 7 days using `search_pull_requests` with a query like: `repo:backstage/backstage is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with that date). The upstream `backstage/backstage` repository is public and read-only: read merged PRs and commits from it, but make documentation edits only in this repository (`${{ github.repository }}`) and never write to upstream
 - Get details of each merged PR using `pull_request_read`
-- Review commits from the last 7 days using `list_commits`
+- Review commits from the last 7 days in `backstage/backstage` using `list_commits`
 - Get detailed commit information using `get_commit` for significant changes
 
 ### 2. Analyze Changes
