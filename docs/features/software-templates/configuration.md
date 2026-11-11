@@ -149,6 +149,8 @@ Available workspace providers:
 - **`database`** — Stores workspaces in the database via `@backstage/plugin-scaffolder-backend-module-workspace-database`. Has a 50MB limit and is not recommended for production use.
 - **`gcpBucket`** — Stores workspaces in a GCS bucket via `@backstage/plugin-scaffolder-backend-module-gcp`. Requires [workload identity](https://cloud.google.com/iam/docs/workload-identity-federation) to be configured. Bucket name is configured via `scaffolder.taskRecovery.gcsBucket.name`.
 
+The `gcpBucket` provider saves each workspace snapshot as a separate object under the task's prefix in the bucket, and deletes older snapshots after a successful save. The Google Cloud credentials used by your backend need permission to list (`storage.objects.list`), create, read and delete objects in the bucket. Grant the list permission before upgrading to a version of the module that saves snapshots separately. Snapshots saved by older versions can still be recovered.
+
 To use a provider, install the corresponding module in your backend:
 
 ```bash
