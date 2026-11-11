@@ -710,7 +710,8 @@ The return type is JSON, on the form
 
 where the `items` array has _the same length_ and _the same order_ as the input
 `entityRefs` array. Each element contains the corresponding entity data, or
-`null` if no entity existed in the catalog with that ref.
+`null` if no entity existed in the catalog with that ref. Entity refs are
+matched case-insensitively.
 
 ### `POST /refresh`
 
