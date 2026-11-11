@@ -1,6 +1,8 @@
 ---
 on:
   workflow_dispatch:
+  push:
+    branches: [gh-aw-test]
 permissions:
   contents: read
 engine:
