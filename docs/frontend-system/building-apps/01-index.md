@@ -171,3 +171,21 @@ export default app.createRoot();
 The middleware calls `originalFactory()` to instantiate the extension and returns
 its output. The example logs the data without changing what the extension provides
 to the app.
+
+To type a middleware that you define separately, import the `ExtensionFactoryMiddleware`
+type from `@backstage/frontend-app-api`. It's no longer exported from
+`@backstage/frontend-plugin-api`, so add `@backstage/frontend-app-api` as a
+dependency of your app package if it isn't already declared:
+
+```tsx title="packages/app/src/middleware.ts"
+import type { ExtensionFactoryMiddleware } from '@backstage/frontend-app-api';
+
+export const logOutput: ExtensionFactoryMiddleware = (
+  originalFactory,
+  { node },
+) => {
+  const output = originalFactory();
+  console.debug(`Extension '${node.spec.id}' output:`, [...output]);
+  return output;
+};
+```
