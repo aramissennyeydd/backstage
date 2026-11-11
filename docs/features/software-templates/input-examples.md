@@ -259,6 +259,37 @@ It's possible to conditionally run steps based on the value of a parameter. In t
     message: 'non-production step'
 ```
 
+## Show or hide parameter steps
+
+You can show or hide a whole step of the input wizard by adding a `when` condition to an entry in `spec.parameters`. The condition can reference values from earlier steps through `parameters`. In the example below, the second step is only shown if the user picks `AWS` in the first step.
+
+```yaml
+spec:
+  parameters:
+    - title: Choose a provider
+      properties:
+        cloudProvider:
+          title: Cloud provider
+          type: string
+          enum:
+            - AWS
+            - GCP
+    - title: AWS settings
+      when: ${{ parameters.cloudProvider === 'AWS' }}
+      properties:
+        awsRegion:
+          title: AWS region
+          type: string
+```
+
+A few things to keep in mind:
+
+- The `when` value can be a templated string or a boolean. The `${{ }}` delimiters are optional.
+- A step is hidden if the condition evaluates to `false`, `undefined`, `null`, an empty string, `0`, or an empty array.
+- A step without a condition, or with a condition that can't be evaluated, is always shown.
+- Hidden steps are skipped during validation, so their required fields don't block the form, and their values are left out of the parameters that the template receives.
+- Conditions are evaluated in order, and only see values from steps that are visible. If a step depends on a value from a hidden step, it is hidden as well.
+
 ## Use parameters as conditional for fields
 
 Its also possible to conditionally show fields based on the value of a parameter. In the example below, we show the `lastName` field only if the `includeName` parameter is set to `true`.
