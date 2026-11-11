@@ -257,6 +257,7 @@ You are an AI documentation agent for the Backstage repository. Each run, you do
 
 - Open at most one pull request. After you open it, finish the run.
 - Never invent configuration keys, defaults, API names or behavior. Every option and example must be confirmed in the source code in the checkout.
+- Every behavior or configuration claim you write must be backed by a `path:line` reference in the checked-out source. Changeset text alone is not enough. If you cannot cite a source line for a claim, leave the claim out of the docs and list it under "Needs human review" in the pull request body.
 - Read `docs/contribute/doc-style-guide.md` first and follow it.
 
 ## Step 1. Read the triage file
@@ -282,6 +283,7 @@ You may include other uncovered changesets that describe the same feature as the
 ## Step 3. Gather context
 
 - Source code in the checkout (`packages/`, `plugins/`, `config.d.ts` files and TSDoc comments). Use it to confirm option names, defaults and example snippets.
+- As you confirm each claim, record its `path:line` in a working file outside the repository tree, such as `/tmp/gh-aw/agent/sources.md`. Take line numbers from `grep -n` output or from reading the file, never from memory.
 - Merged commits on the default branch of the upstream `backstage/backstage` repository, for context only. The upstream repository is public and read-only: never write to it. Use `list_commits` on `master`, then `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR head branch, and do not rely on `pull_request_read` bodies: content that is not yet merged is filtered out by the integrity policy. Do not try to work around a filtered result.
 
 ## Step 4. Choose where it goes
@@ -295,11 +297,12 @@ You may include other uncovered changesets that describe the same feature as the
 
 ## Step 5. Write the documentation
 
-Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
+Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them. Write only claims that have a recorded source reference from step 3.
 
 ## Step 6. Self-check
 
 - Run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
+- Re-check every source reference: run `sed -n '<line>p' <path>` for each one and confirm that the line supports the claim. Fix the reference, or remove the claim and move it to "Needs human review".
 - If `vale` is available on the path, run `node scripts/check-docs-quality.js <edited files>` and fix what it reports. Otherwise, write "Vale: not run" in the pull request body.
 - If the self-check fails and you cannot fix it, do not open the pull request. Call `noop` with the reason.
 
@@ -321,11 +324,11 @@ After those lines, the body must include:
 
 - The rank and score of the picked changeset from the triage file, and any higher ranks you skipped with a few words of reason.
 - Which page it edited, and why that page.
-- What you checked in the source code.
-- Anything that needs human review.
+- A "Source references" table with one row per behavior or configuration claim in the docs change, with the columns "Claim" and "Source" (`path:line`). Line numbers must come from `grep -n` or from reading the file.
+- A "Needs human review" section listing anything you could not back with a source reference, or "None".
 - The results of the self-check.
 
 ## Edge cases
 
 - The triage file lists no uncovered changesets, or none of the ranks you checked is a real gap: call `noop` with the reason.
-- Unclear behavior that you cannot confirm in the source: do not document it. Mention it in the pull request body under human review, or pick the next rank.
+- Unclear behavior that you cannot confirm in the source: do not document it. Mention it in the pull request body under "Needs human review", or pick the next rank.
