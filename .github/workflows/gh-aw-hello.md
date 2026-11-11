@@ -10,8 +10,14 @@ engine:
   env:
     COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_TOKEN }}
 timeout-minutes: 10
+safe-outputs:
+  create-pull-request:
+    title-prefix: '[gh-aw] '
+    base-branch: gh-aw-test
+    draft: true
+    max: 1
 ---
 
 # Hello gh-aw
 
-Read the README.md in the repository root and reply with a one-sentence summary of what this repository is. Do not modify any files.
+Create a new file named `gh-aw-hello.txt` in the repository root containing one sentence that summarizes what this repository is, based on README.md. Do not modify any other file. Then open a pull request with that single change.
