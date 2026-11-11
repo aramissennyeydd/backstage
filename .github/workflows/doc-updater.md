@@ -2,7 +2,7 @@
 name: Documentation Updater
 description: Automatically reviews and updates documentation based on recent code changes
 on:
-  schedule: daily
+  schedule: every 3h
   workflow_dispatch:
   push:
     branches: [gh-aw-test]
@@ -20,6 +20,108 @@ on:
       # exits 0 if not scheduled or <MAX_OPEN_PRS open PRs, 1 if ≥MAX_OPEN_PRS
 
 if: needs.pre_activation.outputs.check_result == 'success'
+
+# Deterministic triage before the agent starts. It lists every changeset,
+# drops the ones that an open [docs] pull request already names in its body,
+# ranks the rest, and writes the result to /tmp/gh-aw/agent/doc-gaps.md.
+steps:
+  - name: Triage changesets against open docs pull requests
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      set -euo pipefail
+      OUT_DIR=/tmp/gh-aw/agent
+      mkdir -p "$OUT_DIR"
+      gh pr list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "[docs]"' \
+        --limit 100 --json number,title,body,url --jq . > "$OUT_DIR/open-docs-prs.json"
+      node - "$OUT_DIR" <<'EOF'
+      const fs = require('fs');
+      const path = require('path');
+      const outDir = process.argv[2];
+      const prs = JSON.parse(fs.readFileSync(path.join(outDir, 'open-docs-prs.json'), 'utf8'));
+
+      // Concatenated docs text, used to hint whether a changeset's terms are already documented.
+      const skipDirs = new Set(['releases', 'reference', 'references', 'node_modules']);
+      let docsText = '';
+      const walk = dir => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (!skipDirs.has(entry.name)) walk(p);
+          } else if (/\.mdx?$/.test(entry.name)) {
+            docsText += fs.readFileSync(p, 'utf8') + '\n';
+          }
+        }
+      };
+      walk('docs');
+
+      const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const bumpScore = { major: 30, minor: 20, patch: 0 };
+      const rows = [];
+      for (const file of fs.readdirSync('.changeset').sort()) {
+        if (!file.endsWith('.md') || file === 'README.md') continue;
+        const raw = fs.readFileSync(path.join('.changeset', file), 'utf8');
+        const m = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+        if (!m) continue;
+        const releases = [...m[1].matchAll(/^['"]?([^'":]+)['"]?\s*:\s*(major|minor|patch)\s*$/gm)]
+          .map(r => ({ pkg: r[1].trim(), bump: r[2] }));
+        const body = m[2].trim();
+        const bump = releases.some(r => r.bump === 'major') ? 'major'
+          : releases.some(r => r.bump === 'minor') ? 'minor' : 'patch';
+
+        // Covered when an open [docs] PR names the changeset file in its body.
+        const nameRe = new RegExp(`(^|[^A-Za-z0-9_-])${escape(file)}`, 'm');
+        const coveredBy = prs.filter(pr => nameRe.test(pr.body || '')).map(pr => pr.number);
+
+        let score = bumpScore[bump];
+        if (/\*\*BREAKING\*\*|breaking/i.test(body)) score += 15;
+        if (/deprecat/i.test(body)) score += 15;
+        if (/config|option|app-config/i.test(body)) score += 10;
+        if (/\b(added|adds|new|introduc|support)/i.test(body)) score += 5;
+        if (/\b(extension|API|service|hook|endpoint)\b/.test(body)) score += 5;
+        if (bump === 'patch' && /\b(internal|refactor|dependenc|bump|test|typo|fix(ed|es)?)\b/i.test(body)) score -= 10;
+
+        const terms = [...new Set([...body.matchAll(/`([^`\n]{4,60})`/g)].map(t => t[1]))]
+          .filter(t => !t.startsWith('@backstage/'));
+        const termsInDocs = terms.filter(t => docsText.includes(t));
+        if (terms.length > 0 && termsInDocs.length === terms.length) score -= 10;
+
+        rows.push({
+          file: `.changeset/${file}`,
+          bump,
+          packages: releases.map(r => r.pkg),
+          score,
+          coveredBy,
+          termsInDocs: `${termsInDocs.length}/${terms.length}`,
+          summary: body.split('\n').find(l => l.trim()) || '',
+        });
+      }
+
+      const covered = rows.filter(r => r.coveredBy.length > 0);
+      const gaps = rows.filter(r => r.coveredBy.length === 0).sort((a, b) => b.score - a.score || a.file.localeCompare(b.file));
+      fs.writeFileSync(path.join(outDir, 'doc-gaps.json'), JSON.stringify({ covered, gaps }, null, 2));
+
+      const cell = s => String(s).replace(/\|/g, '\\|').slice(0, 200);
+      const lines = [
+        '# Changeset triage',
+        '',
+        `Total changesets: ${rows.length}. Covered by open [docs] pull requests: ${covered.length}. Uncovered: ${gaps.length}.`,
+        '',
+        '## Covered by open [docs] pull requests (do not pick)',
+        '',
+        ...(covered.length ? covered.map(r => `- ${r.file}: #${r.coveredBy.join(', #')}`) : ['- none']),
+        '',
+        '## Uncovered changesets, ranked by score',
+        '',
+        '| Rank | Changeset | Bump | Score | Terms already in docs | Packages | Summary |',
+        '| --- | --- | --- | --- | --- | --- | --- |',
+        ...gaps.map((r, i) => `| ${i + 1} | ${r.file} | ${r.bump} | ${r.score} | ${r.termsInDocs} | ${cell(r.packages.join(', '))} | ${cell(r.summary)} |`),
+        '',
+      ];
+      fs.writeFileSync(path.join(outDir, 'doc-gaps.md'), lines.join('\n'));
+      console.log(`changesets=${rows.length} covered=${covered.length} uncovered=${gaps.length}`);
+      console.log(gaps.slice(0, 10).map((r, i) => `${i + 1}. ${r.file} (${r.bump}, score ${r.score})`).join('\n'));
+      EOF
 
 network:
   allowed:
@@ -51,7 +153,7 @@ timeout-minutes: 60
 
 safe-outputs:
   create-pull-request:
-    max: 5
+    max: 1
     expires: 2d
     title-prefix: '[docs] '
     labels: [documentation, automation]
@@ -65,44 +167,38 @@ source-sha: '139fa09ef17cde4135e696ff8e7af09bc5ddfa6e'
 
 # Documentation Updater
 
-You are an AI documentation agent for the Backstage repository. Each run, you pick up to 5 meaningful, adopter-facing changes that are not yet documented, and open one draft pull request per change that documents it properly.
+You are an AI documentation agent for the Backstage repository. Each run, you document exactly one adopter-facing change that is not yet documented, and open exactly one draft pull request for it. The workflow runs every few hours, so other gaps are handled by later runs.
 
 ## Rules for this run
 
-- Pick up to 5 topics per run. A topic is one changeset, or a closely related group of changesets. Document each topic thoroughly. You may touch up to about 3 files per topic when they belong together.
-- Open one pull request per topic, and at most 5 in total. Each pull request contains only the files for its own topic, on its own branch. See step 7.
+- Open at most one pull request. After you open it, finish the run.
 - Never invent configuration keys, defaults, API names or behavior. Every option and example must be confirmed in the source code in the checkout.
 - Read `docs/contribute/doc-style-guide.md` first and follow it.
 
-## Step 1. Find candidate changes
+## Step 1. Read the triage file
 
-Use these inputs, in priority order.
+A setup step has already sorted every changeset before you started. Read `/tmp/gh-aw/agent/doc-gaps.md` with `cat`. It contains:
 
-1. Local changesets in the checkout: `.changeset/*.md`. They are unreleased, adopter-facing change notes, and files in the checkout are trusted. Skip `patch` changesets that are clearly internal. Prefer `minor` or major changes, new configuration keys, new APIs or extension points, and deprecations.
-2. Source code in the checkout (`packages/`, `plugins/`, `config.d.ts` files and TSDoc comments). Use it to confirm option names, defaults and example snippets.
-3. Merged commits on the default branch of the upstream `backstage/backstage` repository, for context only. The upstream repository is public and read-only: never write to it. Use `list_commits` on `master`, then `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR head branch, and do not rely on `pull_request_read` bodies: content that is not yet merged is filtered out by the integrity policy. Do not try to work around a filtered result. Skip that item instead.
+- The changesets that an open `[docs]` pull request on `${{ github.repository }}` already names. Never pick one of these, and never document the same behavior again.
+- The uncovered changesets, ranked by adopter impact. The "Terms already in docs" column shows how many code terms from the changeset already appear in `docs/`. It is a hint, not a verdict.
 
-## Step 2. Triage every changeset
+Do not redo the triage, and do not list pull requests yourself to decide what is covered. The file is the source of truth for coverage.
 
-Before writing anything, classify every file in `.changeset/*.md` (except `README.md` and `config.json`) into exactly one of three classes. A script-assisted pass is fine and encouraged: write a small shell or Node script to list each changeset's packages, bump type and first lines into a working file, then add your classification for each one.
+## Step 2. Pick the top uncovered gap
 
-- **documented**: the behavior, option or API is already described in `docs/` or in the relevant package README. Confirm with a search for its key terms, for example `grep -ril "<term>" docs/ plugins/*/README.md packages/*/README.md`.
-- **not adopter-facing**: internal refactoring, test-only or build-only changes, dependency bumps, or bug fixes that need no explanation.
-- **gap**: adopter-facing and not yet documented.
+Start with rank 1 and confirm that it is a real gap:
 
-Then:
+- It is adopter-facing: not internal refactoring, test-only or build-only changes, dependency bumps, or a bug fix that needs no explanation.
+- It is not already documented. Search for its key terms, for example `grep -ril "<term>" docs/ plugins/*/README.md packages/*/README.md`.
 
-- Record the result as a Markdown table with one row per changeset: file name, class, and a few words of reason. Keep it in a working file outside the repository tree, such as `/tmp/gh-aw/agent/triage.md`, so that it is never committed.
-- Also record the counts for each class, and the total.
-- A gap that is already covered by an open `[docs]` pull request on `${{ github.repository }}` counts as **documented (open PR)**. List open `[docs]` pull requests with the GitHub tools; pull requests on this repository are trusted content.
-- Rank the gaps by adopter impact: new configuration keys, new APIs or extension points, deprecations and breaking changes come first.
-- If there are no gaps, call `noop` with the triage counts as the reason.
+If it is not a real gap, move to the next rank. Check at most 10 ranks. If none of them is a real gap, call `noop` and name the changesets you checked and why each was skipped.
 
-## Step 3. Pick the gaps
+You may include other uncovered changesets that describe the same feature as the one you picked, so that one pull request documents the feature completely. Never include a changeset from the covered list.
 
-From the ranked gaps in step 2, take the top 5. Each one is a separate topic. A topic is one changeset or a closely related group. Do not pick two topics that would edit the same section of the same page. If there are fewer than 5 gaps, open fewer pull requests.
+## Step 3. Gather context
 
-Before you start writing, re-check each chosen topic with a final search of `docs/` for its key terms, so that you do not duplicate something you missed in the triage.
+- Source code in the checkout (`packages/`, `plugins/`, `config.d.ts` files and TSDoc comments). Use it to confirm option names, defaults and example snippets.
+- Merged commits on the default branch of the upstream `backstage/backstage` repository, for context only. The upstream repository is public and read-only: never write to it. Use `list_commits` on `master`, then `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR head branch, and do not rely on `pull_request_read` bodies: content that is not yet merged is filtered out by the integrity policy. Do not try to work around a filtered result.
 
 ## Step 4. Choose where it goes
 
@@ -111,37 +207,35 @@ Before you start writing, re-check each chosen topic with a final search of `doc
 - Never edit `docs/releases/**`, `docs/reference/**`, `CHANGELOG.md` files or `*-api-report.md` files.
 - Match the target page's heading and example style.
 - When the change adds options or APIs, include a YAML configuration example or a TypeScript code example. Check every name in it against the source.
+- You may touch up to about 3 files when they belong together.
 
 ## Step 5. Write the documentation
 
-Work on one topic at a time, in the way that step 7 describes. Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
+Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
 
-## Step 6. Self-check before the pull request
+## Step 6. Self-check
 
-- For each topic, run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
+- Run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
 - If `vale` is available on the path, run `node scripts/check-docs-quality.js <edited files>` and fix what it reports. Otherwise, write "Vale: not run" in the pull request body.
+- If the self-check fails and you cannot fix it, do not open the pull request. Call `noop` with the reason.
 
-## Step 7. Open one pull request per topic
+## Step 7. Open one pull request
 
-The safe-outputs tool builds each pull request from the commits on the local branch you name, counted from the starting branch. To keep topics isolated, do the following.
-
-1. Before you edit anything, and after the triage in step 2, run `git branch --show-current` and remember the result as the starting branch. Make sure `git status` is clean.
-2. For each topic, in order:
-   1. Start from the starting branch: `git checkout <starting branch>`. Never branch from a previous topic's branch, or its commits will leak into the next pull request.
-   2. Create a new branch with a unique, descriptive name: `git checkout -b docs/<short-topic-name>`.
-   3. Do steps 5 and 6 for this topic only.
-   4. Stage exactly the files for this topic by name (never `git add -A`), check `git status` shows nothing else, and commit.
-   5. Call the safe-outputs create-pull-request tool once, with `branch` set to the exact output of `git branch --show-current`.
-   6. Do not stop after this call. Go back to sub-step 2.1 of this step for the next topic, immediately, without writing a summary first. The "stop after creating a pull request" instruction applies per pull request in this workflow.
-3. Never reuse a branch or call the tool twice for the same topic. Do not push, and do not change git remotes.
-4. After the last topic, state the triage counts and the pull requests you opened in your final message, then finish. If a topic fails its self-check and you cannot fix it, drop that topic: do not open its pull request.
+1. Create a branch with a descriptive name: `git checkout -b docs/<short-topic-name>`.
+2. Stage exactly the edited files by name (never `git add -A`), check that `git status` shows nothing else, and commit.
+3. Call the safe-outputs create-pull-request tool once, with `branch` set to the exact output of `git branch --show-current`. Do not push, and do not change git remotes.
 
 **Title format**: `[docs] <short description of what is now documented>`
 
-Each body must include:
+The body must start with one line per documented changeset, in exactly this form, so that later runs can tell the changeset is covered:
 
-- A collapsed triage section: a `<details>` block whose summary shows the counts (documented, documented with an open pull request, not adopter-facing, gap, total) and which holds the full triage table from step 2, with the topics of the 5 pull requests marked.
-- The changeset or commit it documents, with a link.
+```text
+Changeset: .changeset/<file name>.md
+```
+
+After those lines, the body must include:
+
+- The rank and score of the picked changeset from the triage file, and any higher ranks you skipped with a few words of reason.
 - Which page it edited, and why that page.
 - What you checked in the source code.
 - Anything that needs human review.
@@ -149,5 +243,5 @@ Each body must include:
 
 ## Edge cases
 
-- Nothing worth documenting, or everything is already documented: call `noop` with the reason.
-- Unclear behavior that you cannot confirm in the source: do not document it. Mention it in the pull request body under human review, or pick a different topic.
+- The triage file lists no uncovered changesets, or none of the ranks you checked is a real gap: call `noop` with the reason.
+- Unclear behavior that you cannot confirm in the source: do not document it. Mention it in the pull request body under human review, or pick the next rank.
