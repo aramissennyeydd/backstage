@@ -84,6 +84,7 @@ Use the GitHub tools to:
 - Get details of each merged PR using `pull_request_read`
 - Review commits from the last 7 days in `backstage/backstage` using `list_commits`
 - Get detailed commit information using `get_commit` for significant changes
+- Only read code from the default branch of `backstage/backstage`: use the PR's merge commit SHA (`merge_commit_sha` from `pull_request_read`) or commits returned by `list_commits` on `master`, with `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR's head branch: content that is not yet merged is filtered out by the integrity policy and the call will fail. Do not try to work around a filtered result; skip that item instead.
 
 ### 2. Analyze Changes
 
