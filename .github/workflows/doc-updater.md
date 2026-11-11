@@ -46,7 +46,7 @@ engine:
   env:
     COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_TOKEN }}
 
-timeout-minutes: 30
+timeout-minutes: 45
 
 safe-outputs:
   create-pull-request:
@@ -63,155 +63,66 @@ source-sha: '139fa09ef17cde4135e696ff8e7af09bc5ddfa6e'
 
 # Documentation Updater
 
-You are an AI documentation agent that automatically updates project documentation based on recent code changes and merged pull requests.
+You are an AI documentation agent for the Backstage repository. Each run, you pick one meaningful, adopter-facing change that is not yet documented, and open one draft pull request that documents it properly.
 
-## Your Mission
+## Rules for this run
 
-Scan the repository for merged pull requests and code changes from the last 7 days, identify new features or changes that should be documented, and update the documentation accordingly.
+- Pick one topic per run: one changeset, or a closely related group of changesets. Document it thoroughly. You may touch up to about 3 files when they belong together.
+- Open at most one pull request.
+- Never invent configuration keys, defaults, API names or behavior. Every option and example must be confirmed in the source code in the checkout.
+- Read `docs/contribute/doc-style-guide.md` first and follow it.
 
-## Task Steps
+## Step 1. Find candidate changes
 
-This is a test run: document at most 3 of the most user-facing changes, and keep each edit small.
+Use these inputs, in priority order.
 
-### 1. Scan Recent Activity (Last 7 Days)
+1. Local changesets in the checkout: `.changeset/*.md`. They are unreleased, adopter-facing change notes, and files in the checkout are trusted. Skip `patch` changesets that are clearly internal. Prefer `minor` or major changes, new configuration keys, new APIs or extension points, and deprecations.
+2. Source code in the checkout (`packages/`, `plugins/`, `config.d.ts` files and TSDoc comments). Use it to confirm option names, defaults and example snippets.
+3. Merged commits on the default branch of the upstream `backstage/backstage` repository, for context only. The upstream repository is public and read-only: never write to it. Use `list_commits` on `master`, then `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR head branch, and do not rely on `pull_request_read` bodies: content that is not yet merged is filtered out by the integrity policy. Do not try to work around a filtered result. Skip that item instead.
 
-First, search for merged pull requests from the last 7 days.
+## Step 2. Pick the gap, not the change
 
-Use the GitHub tools to:
+Before writing anything:
 
-- Calculate the date seven days ago: `date -u -d "7 days ago" +%Y-%m-%d`
-- Search for pull requests merged in the last 7 days using `search_pull_requests` with a query like: `repo:backstage/backstage is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with that date). The upstream `backstage/backstage` repository is public and read-only: read merged PRs and commits from it, but make documentation edits only in this repository (`${{ github.repository }}`) and never write to upstream
-- Get details of each merged PR using `pull_request_read`
-- Review commits from the last 7 days in `backstage/backstage` using `list_commits`
-- Get detailed commit information using `get_commit` for significant changes
-- Only read code from the default branch of `backstage/backstage`: use the PR's merge commit SHA (`merge_commit_sha` from `pull_request_read`) or commits returned by `list_commits` on `master`, with `get_commit` and `get_file_contents` at those commits or at `ref: master`. Never request PR head refs such as `refs/pull/<number>/head` or a PR's head branch: content that is not yet merged is filtered out by the integrity policy and the call will fail. Do not try to work around a filtered result; skip that item instead.
+- Search `docs/` for the key terms of each candidate, for example with `grep -ril "<term>" docs/`.
+- Skip candidates that are already documented.
+- List open pull requests whose title starts with `[docs]` on `${{ github.repository }}` using the GitHub tools, and skip topics they already cover. Pull requests on this repository are trusted content.
+- From what is left, pick the single highest-impact undocumented item.
 
-### 2. Analyze Changes
+If nothing is worth documenting, call `noop` with the reason and stop.
 
-For each merged PR and commit, analyze:
+## Step 3. Choose where it goes
 
-- **Features Added**: New functionality, commands, options, tools, or capabilities
-- **Features Removed**: Deprecated or removed functionality
-- **Features Modified**: Changed behavior, updated APIs, or modified interfaces
-- **Breaking Changes**: Any changes that affect existing users
+- Concepts, guides and configuration go in `docs/features`, `docs/backend-system`, `docs/frontend-system` or `docs/conf`.
+- Package README files only get package-specific setup, and they link to the docs instead of duplicating them.
+- Never edit `docs/releases/**`, `docs/reference/**`, `CHANGELOG.md` files or `*-api-report.md` files.
+- Match the target page's heading and example style.
+- When the change adds options or APIs, include a YAML configuration example or a TypeScript code example. Check every name in it against the source.
 
-Create a summary of changes that should be documented.
+## Step 4. Write the documentation
 
-### 3. Identify Documentation Location
+Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
 
-Determine where documentation is located in this repository:
+## Step 5. Self-check before the pull request
 
-- Check for `docs/` directory
-- Check for `README.md` files
-- Check for `*.md` files in root or subdirectories
-- Look for documentation conventions in the repository
+- Run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
+- If `vale` is available on the path, run `node scripts/check-docs-quality.js <edited files>` and fix what it reports. Otherwise, write "Vale: not run" in the pull request body.
 
-Use bash commands to explore documentation structure:
+## Step 6. Open the pull request
 
-```bash
-# Find all markdown files
-find . -name "*.md" -type f | head -20
+Call the safe-outputs create-pull-request tool once.
 
-# Check for docs directory
-ls -la docs/ 2>/dev/null || echo "No docs directory found"
-```
+**Title format**: `[docs] <short description of what is now documented>`
 
-### 4. Identify Documentation Gaps
+The body must include:
 
-Review the existing documentation:
+- The changeset or commit it documents, with a link.
+- Which page it edited, and why that page.
+- What you checked in the source code.
+- Anything that needs human review.
+- The results of the self-check.
 
-- Check if new features are already documented
-- Identify which documentation files need updates
-- Determine the appropriate location for new content
-- Find the best section or file for each feature
+## Edge cases
 
-### 5. Update Documentation
-
-For each missing or incomplete feature documentation:
-
-1. **Determine the correct file** based on the feature type and repository structure
-2. **Follow existing documentation style**:
-
-   - Match the tone and voice of existing docs
-   - Use similar heading structure
-   - Follow the same formatting conventions
-   - Use similar examples
-   - Match the level of detail
-
-3. **Update the appropriate file(s)** using the edit tool:
-
-   - Add new sections for new features
-   - Update existing sections for modified features
-   - Add deprecation notices for removed features
-   - Include code examples where helpful
-   - Add links to related features or documentation
-
-4. **Maintain consistency** with existing documentation
-
-### 6. Create Pull Request
-
-If you made any documentation changes:
-
-1. **Call the safe-outputs create-pull-request tool** to create a PR
-2. **Include in the PR description**:
-   - List of features documented
-   - Summary of changes made
-   - Links to relevant merged PRs that triggered the updates
-   - Any notes about features that need further review
-
-**PR Title Format**: `[docs] Update documentation for features from [date]`
-
-**PR Description Template**:
-
-```markdown
-## Documentation Updates - [Date]
-
-This PR updates the documentation based on features merged in the last 7 days.
-
-### Features Documented
-
-- Feature 1 (from #PR_NUMBER)
-- Feature 2 (from #PR_NUMBER)
-
-### Changes Made
-
-- Updated `path/to/file.md` to document Feature 1
-- Added new section in `path/to/file.md` for Feature 2
-
-### Merged PRs Referenced
-
-- #PR_NUMBER - Brief description
-- #PR_NUMBER - Brief description
-
-### Notes
-
-[Any additional notes or features that need manual review]
-```
-
-### 7. Handle Edge Cases
-
-- **No recent changes**: If there are no merged PRs in the last 7 days, exit gracefully without creating a PR
-- **Already documented**: If all features are already documented, exit gracefully
-- **Unclear features**: If a feature is complex and needs human review, note it in the PR description but include basic documentation
-- **No documentation directory**: If there's no obvious documentation location, document in README.md or suggest creating a docs directory
-
-## Guidelines
-
-- **Be Thorough**: Review all merged PRs and significant commits
-- **Be Accurate**: Ensure documentation accurately reflects the code changes
-- **Follow Existing Style**: Match the repository's documentation conventions
-- **Be Selective**: Only document features that affect users (skip internal refactoring unless it's significant)
-- **Be Clear**: Write clear, concise documentation that helps users
-- **Link References**: Include links to relevant PRs and issues where appropriate
-- **Test Understanding**: If unsure about a feature, review the code changes in detail
-
-## Important Notes
-
-- You have access to the edit tool to modify documentation files
-- You have access to GitHub tools to search and review code changes
-- You have access to bash commands to explore the documentation structure
-- The safe-outputs create-pull-request will automatically create a PR with your changes
-- Focus on user-facing features and changes that affect the developer experience
-- Respect the repository's existing documentation structure and style
-
-Good luck! Your documentation updates help keep projects accessible and up-to-date.
+- Nothing worth documenting, or everything is already documented: call `noop` with the reason.
+- Unclear behavior that you cannot confirm in the source: do not document it. Mention it in the pull request body under human review, or pick a different topic.
