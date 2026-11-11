@@ -412,6 +412,22 @@ plugin's complete production route registration.
 
 The `snapshot()` method on `ExtensionTester` returns a tree-shaped representation of the resolved extension hierarchy, which is convenient to use with Jest's `toMatchInlineSnapshot()` for verifying extension structure in tests.
 
+## Handling app errors in tests
+
+`renderInTestApp`, `renderTestApp` and `createExtensionTester` throw for every error reported while creating the test app or extension tree. This includes errors that a real app only logs as warnings, such as `EXTENSION_IGNORED`, so a test can no longer pass against a broken app. The error message names the error code that you can allow.
+
+Fix the problem in your test setup whenever possible. If an error is expected, pass the `isExpectedError` option to allow it:
+
+```tsx
+await renderInTestApp(<MyComponent />, {
+  isExpectedError: error =>
+    error.code === 'EXTENSION_INPUT_DATA_IGNORED' &&
+    error.context.node.spec.id === 'page:my-plugin',
+});
+```
+
+A common error is `API_FACTORY_CONFLICT`, which occurs when you provide an API that another plugin owns, such as a `core.*` API passed in `extensions`. That override is always rejected, so remove it, or use the `apis` option to replace the API in your test.
+
 ## Missing something?
 
 If there's anything else you think needs to be covered in the docs or that you think isn't covered by the test utilities, please create an issue in the Backstage repository. You are always welcome to contribute as well!
