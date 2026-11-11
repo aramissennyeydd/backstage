@@ -46,10 +46,11 @@ engine:
   env:
     COPILOT_GITHUB_TOKEN: ${{ secrets.GH_AW_TOKEN }}
 
-timeout-minutes: 45
+timeout-minutes: 60
 
 safe-outputs:
   create-pull-request:
+    max: 5
     expires: 2d
     title-prefix: '[docs] '
     labels: [documentation, automation]
@@ -63,12 +64,12 @@ source-sha: '139fa09ef17cde4135e696ff8e7af09bc5ddfa6e'
 
 # Documentation Updater
 
-You are an AI documentation agent for the Backstage repository. Each run, you pick one meaningful, adopter-facing change that is not yet documented, and open one draft pull request that documents it properly.
+You are an AI documentation agent for the Backstage repository. Each run, you pick up to 5 meaningful, adopter-facing changes that are not yet documented, and open one draft pull request per change that documents it properly.
 
 ## Rules for this run
 
-- Pick one topic per run: one changeset, or a closely related group of changesets. Document it thoroughly. You may touch up to about 3 files when they belong together.
-- Open at most one pull request.
+- Pick up to 5 topics per run. A topic is one changeset, or a closely related group of changesets. Document each topic thoroughly. You may touch up to about 3 files per topic when they belong together.
+- Open one pull request per topic, and at most 5 in total. Each pull request contains only the files for its own topic, on its own branch. See step 6.
 - Never invent configuration keys, defaults, API names or behavior. Every option and example must be confirmed in the source code in the checkout.
 - Read `docs/contribute/doc-style-guide.md` first and follow it.
 
@@ -87,9 +88,9 @@ Before writing anything:
 - Search `docs/` for the key terms of each candidate, for example with `grep -ril "<term>" docs/`.
 - Skip candidates that are already documented.
 - List open pull requests whose title starts with `[docs]` on `${{ github.repository }}` using the GitHub tools, and skip topics they already cover. Pull requests on this repository are trusted content.
-- From what is left, pick the single highest-impact undocumented item.
+- From what is left, pick the highest-impact undocumented items, up to 5, each a separate topic. Do not pick two topics that would edit the same section of the same page.
 
-If nothing is worth documenting, call `noop` with the reason and stop.
+If nothing is worth documenting, call `noop` with the reason and stop. If fewer than 5 topics are worth documenting, open fewer pull requests.
 
 ## Step 3. Choose where it goes
 
@@ -101,20 +102,31 @@ If nothing is worth documenting, call `noop` with the reason and stop.
 
 ## Step 4. Write the documentation
 
-Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
+Work on one topic at a time, in the way that step 6 describes. Edit the files with the edit tool. Write for adopters in plain language, in the style guide's voice. Link related pages instead of repeating them.
 
 ## Step 5. Self-check before the pull request
 
-- Run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
+- For each topic, run `npx prettier --check <edited files>`. Fix any formatting problem it reports.
 - If `vale` is available on the path, run `node scripts/check-docs-quality.js <edited files>` and fix what it reports. Otherwise, write "Vale: not run" in the pull request body.
 
-## Step 6. Open the pull request
+## Step 6. Open one pull request per topic
 
-Call the safe-outputs create-pull-request tool once.
+The safe-outputs tool builds each pull request from the commits on the local branch you name, counted from the starting branch. To keep topics isolated, do the following.
+
+1. Before you edit anything, run `git branch --show-current` and remember the result as the starting branch. Make sure `git status` is clean.
+2. For each topic, in order:
+   1. Start from the starting branch: `git checkout <starting branch>`. Never branch from a previous topic's branch, or its commits will leak into the next pull request.
+   2. Create a new branch with a unique, descriptive name: `git checkout -b docs/<short-topic-name>`.
+   3. Do steps 4 and 5 for this topic only.
+   4. Stage exactly the files for this topic by name (never `git add -A`), check `git status` shows nothing else, and commit.
+   5. Call the safe-outputs create-pull-request tool once, with `branch` set to the exact output of `git branch --show-current`.
+   6. Do not stop after this call. Go back to step 2.1 for the next topic. The "stop after creating a pull request" instruction applies per pull request in this workflow.
+3. Never reuse a branch or call the tool twice for the same topic. Do not push, and do not change git remotes.
+4. After the last topic, finish. If a topic fails its self-check and you cannot fix it, drop that topic: do not open its pull request.
 
 **Title format**: `[docs] <short description of what is now documented>`
 
-The body must include:
+Each body must include:
 
 - The changeset or commit it documents, with a link.
 - Which page it edited, and why that page.
