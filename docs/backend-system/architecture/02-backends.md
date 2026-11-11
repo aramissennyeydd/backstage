@@ -62,4 +62,17 @@ backend.start(
 );
 ```
 
+Each plugin and module result has a `resultAt` timestamp for when its startup completed. It also has an optional `beginAt` timestamp for when its `init` function was invoked, which is after its dependencies were resolved. The difference between `resultAt` and `beginAt` shows how long the `init` function itself took, separate from time spent waiting for other plugins to initialize. The `beginAt` timestamp is `undefined` if the plugin or module failed before reaching initialization, or if a plugin has no `init` function.
+
+```ts
+backend.start(({ result }) => {
+  for (const plugin of result.plugins) {
+    if (plugin.beginAt) {
+      const initMs = plugin.resultAt.getTime() - plugin.beginAt.getTime();
+      console.log(`Plugin ${plugin.pluginId} init took ${initMs}ms`);
+    }
+  }
+});
+```
+
 This information is mostly useful if you want to add additional monitoring or debugging tools to your backend. The information is a structured representation of what is already logged during startup.
