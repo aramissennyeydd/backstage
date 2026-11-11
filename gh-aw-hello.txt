@@ -1,0 +1,1 @@
+Backstage is an open source framework for building developer portals, powered by a centralized software catalog.
