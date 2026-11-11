@@ -22,8 +22,9 @@ on:
 if: needs.pre_activation.outputs.check_result == 'success'
 
 # Deterministic triage before the agent starts. It lists every changeset,
-# drops the ones that an open [docs] pull request already names in its body,
-# ranks the rest, and writes the result to /tmp/gh-aw/agent/doc-gaps.md.
+# drops the ones that an open pull request already covers, ranks the rest,
+# and writes the result to /tmp/gh-aw/agent/doc-gaps.md. Pull request text is
+# only matched against, never copied into that file.
 steps:
   - name: Triage changesets against open docs pull requests
     env:
@@ -32,13 +33,15 @@ steps:
       set -euo pipefail
       OUT_DIR=/tmp/gh-aw/agent
       mkdir -p "$OUT_DIR"
-      gh pr list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "[docs]"' \
-        --limit 100 --json number,title,body,url --jq . > "$OUT_DIR/open-docs-prs.json"
+      gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+        --json number,title,body,files --jq . > "$OUT_DIR/open-prs.json"
       node - "$OUT_DIR" <<'EOF'
       const fs = require('fs');
       const path = require('path');
+      const { execFileSync } = require('child_process');
       const outDir = process.argv[2];
-      const prs = JSON.parse(fs.readFileSync(path.join(outDir, 'open-docs-prs.json'), 'utf8'));
+      const repo = process.env.GITHUB_REPOSITORY;
+      const prs = JSON.parse(fs.readFileSync(path.join(outDir, 'open-prs.json'), 'utf8'));
 
       // Concatenated docs text, used to hint whether a changeset's terms are already documented.
       const skipDirs = new Set(['releases', 'reference', 'references', 'node_modules']);
@@ -55,9 +58,61 @@ steps:
       };
       walk('docs');
 
+      // Workspace package name to directory, to tie a pull request's files to a changeset's packages.
+      const pkgDirs = {};
+      for (const root of ['packages', 'plugins']) {
+        for (const dir of fs.readdirSync(root)) {
+          const pj = path.join(root, dir, 'package.json');
+          if (!fs.existsSync(pj)) continue;
+          try {
+            pkgDirs[JSON.parse(fs.readFileSync(pj, 'utf8')).name] = `${root}/${dir}/`;
+          } catch (e) {
+            console.log(`::warning::Could not parse ${pj}: ${e.message}`);
+          }
+        }
+      }
+
+      // A docs pull request is an open pull request, with any title, that changes only documentation:
+      // files under docs/, microsite data and sidebars, Markdown files, and changesets. A code pull request that also
+      // edits docs does not count, because it documents its own unmerged change, not a merged changeset.
+      const isDocsFile = p =>
+        (p.startsWith('docs/') || /\.mdx?$/.test(p)) &&
+        !p.startsWith('.changeset/') && !p.startsWith('.github/') && !p.startsWith('docs/releases/') &&
+        !/(^|\/)CHANGELOG\.md$/.test(p) && !p.endsWith('-api-report.md');
+      const docsPrs = [];
+      for (const pr of prs) {
+        const paths = (pr.files || []).map(f => f.path);
+        pr.isDocs = paths.some(isDocsFile) &&
+          paths.every(p => isDocsFile(p) || p.startsWith('docs/') || p.startsWith('.changeset/') ||
+            p.startsWith('microsite/data/') || p === 'microsite/sidebars.ts');
+        if (!pr.isDocs) continue;
+        // Only lines added to documentation files count, plus the title and body.
+        let added = '';
+        try {
+          const diff = execFileSync('gh', ['pr', 'diff', String(pr.number), '--repo', repo], {
+            encoding: 'utf8',
+            maxBuffer: 64 * 1024 * 1024,
+          });
+          let keep = false;
+          for (const line of diff.split('\n')) {
+            if (line.startsWith('diff --git ')) {
+              const m = line.match(/ b\/(.+)$/);
+              keep = Boolean(m) && isDocsFile(m[1]);
+            } else if (keep && line.startsWith('+') && !line.startsWith('+++')) {
+              added += line.slice(1) + '\n';
+            }
+          }
+        } catch (e) {
+          console.log(`::warning::Could not fetch the diff of #${pr.number}, matching on title, body and paths only: ${e.message.split('\n')[0]}`);
+        }
+        pr.paths = paths;
+        pr.text = `${pr.title}\n${pr.body || ''}\n${added}`;
+        docsPrs.push(pr);
+      }
+
       const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const bumpScore = { major: 30, minor: 20, patch: 0 };
-      const rows = [];
+      const parsed = [];
       for (const file of fs.readdirSync('.changeset').sort()) {
         if (!file.endsWith('.md') || file === 'README.md') continue;
         const raw = fs.readFileSync(path.join('.changeset', file), 'utf8');
@@ -66,12 +121,42 @@ steps:
         const releases = [...m[1].matchAll(/^['"]?([^'":]+)['"]?\s*:\s*(major|minor|patch)\s*$/gm)]
           .map(r => ({ pkg: r[1].trim(), bump: r[2] }));
         const body = m[2].trim();
+        const terms = [...new Set([...body.matchAll(/`([^`\n]{4,60})`/g)].map(t => t[1]))]
+          .filter(t => !t.startsWith('@backstage/'));
+        parsed.push({ file, releases, body, terms });
+      }
+
+      // Key terms for fuzzy matching: code-like or long, and not shared by 3 or more changesets.
+      const termCount = {};
+      for (const c of parsed) for (const t of c.terms) termCount[t] = (termCount[t] || 0) + 1;
+      const isKeyTerm = t => t.length >= 5 && termCount[t] < 3 && (/[A-Z0-9._\-\/:]/.test(t) || t.length >= 10);
+
+      const rows = [];
+      for (const { file, releases, body, terms } of parsed) {
         const bump = releases.some(r => r.bump === 'major') ? 'major'
           : releases.some(r => r.bump === 'minor') ? 'minor' : 'patch';
 
-        // Covered when an open [docs] PR names the changeset file in its body.
+        // Exact: any open pull request names the changeset file.
+        // Match: a docs pull request mentions 2 or more key terms, 1 key term and a package of the changeset,
+        // or 1 key term that only this changeset uses and that the checked-out docs do not mention yet.
         const nameRe = new RegExp(`(^|[^A-Za-z0-9_-])${escape(file)}`, 'm');
-        const coveredBy = prs.filter(pr => nameRe.test(pr.body || '')).map(pr => pr.number);
+        const keyTerms = terms.filter(isKeyTerm);
+        const coveredBy = [];
+        for (const pr of prs) {
+          if (nameRe.test(pr.body || '')) {
+            coveredBy.push({ pr: pr.number, how: 'names the changeset' });
+            continue;
+          }
+          if (!pr.isDocs) continue;
+          const hits = keyTerms.filter(t => pr.text.includes(t));
+          const pkgHit = releases.some(r =>
+            pr.text.includes(r.pkg) || (pkgDirs[r.pkg] && pr.paths.some(p => p.startsWith(pkgDirs[r.pkg]))));
+          const newTerm = hits.some(t => termCount[t] === 1 && !docsText.includes(t));
+          if (hits.length >= 2 || (hits.length === 1 && (pkgHit || newTerm))) {
+            const listed = hits.slice(0, 3).map(t => `\`${t}\``).join(', ');
+            coveredBy.push({ pr: pr.number, how: `mentions ${listed}${pkgHit ? ' and its package' : ''}` });
+          }
+        }
 
         let score = bumpScore[bump];
         if (/\*\*BREAKING\*\*|breaking/i.test(body)) score += 15;
@@ -81,8 +166,6 @@ steps:
         if (/\b(extension|API|service|hook|endpoint)\b/.test(body)) score += 5;
         if (bump === 'patch' && /\b(internal|refactor|dependenc|bump|test|typo|fix(ed|es)?)\b/i.test(body)) score -= 10;
 
-        const terms = [...new Set([...body.matchAll(/`([^`\n]{4,60})`/g)].map(t => t[1]))]
-          .filter(t => !t.startsWith('@backstage/'));
         const termsInDocs = terms.filter(t => docsText.includes(t));
         if (terms.length > 0 && termsInDocs.length === terms.length) score -= 10;
 
@@ -105,11 +188,11 @@ steps:
       const lines = [
         '# Changeset triage',
         '',
-        `Total changesets: ${rows.length}. Covered by open [docs] pull requests: ${covered.length}. Uncovered: ${gaps.length}.`,
+        `Total changesets: ${rows.length}. Open pull requests checked: ${prs.length}, of which ${docsPrs.length} change documentation. Covered: ${covered.length}. Uncovered: ${gaps.length}.`,
         '',
-        '## Covered by open [docs] pull requests (do not pick)',
+        '## Covered by open pull requests (do not pick)',
         '',
-        ...(covered.length ? covered.map(r => `- ${r.file}: #${r.coveredBy.join(', #')}`) : ['- none']),
+        ...(covered.length ? covered.map(r => `- ${r.file}: ${r.coveredBy.map(c => `#${c.pr} (${c.how})`).join('; ')}`) : ['- none']),
         '',
         '## Uncovered changesets, ranked by score',
         '',
@@ -119,7 +202,8 @@ steps:
         '',
       ];
       fs.writeFileSync(path.join(outDir, 'doc-gaps.md'), lines.join('\n'));
-      console.log(`changesets=${rows.length} covered=${covered.length} uncovered=${gaps.length}`);
+      console.log(`changesets=${rows.length} prs=${prs.length} docsPrs=${docsPrs.length} covered=${covered.length} uncovered=${gaps.length}`);
+      console.log(covered.map(r => `covered ${r.file}: ${r.coveredBy.map(c => `#${c.pr} (${c.how})`).join('; ')}`).join('\n'));
       console.log(gaps.slice(0, 10).map((r, i) => `${i + 1}. ${r.file} (${r.bump}, score ${r.score})`).join('\n'));
       EOF
 
@@ -179,7 +263,7 @@ You are an AI documentation agent for the Backstage repository. Each run, you do
 
 A setup step has already sorted every changeset before you started. Read `/tmp/gh-aw/agent/doc-gaps.md` with `cat`. It contains:
 
-- The changesets that an open `[docs]` pull request on `${{ github.repository }}` already names. Never pick one of these, and never document the same behavior again.
+- The changesets that an open pull request on `${{ github.repository }}` already covers, either because it names the changeset file or because it changes documentation that mentions the changeset's key terms. Never pick one of these, and never document the same behavior again.
 - The uncovered changesets, ranked by adopter impact. The "Terms already in docs" column shows how many code terms from the changeset already appear in `docs/`. It is a hint, not a verdict.
 
 Do not redo the triage, and do not list pull requests yourself to decide what is covered. The file is the source of truth for coverage.
